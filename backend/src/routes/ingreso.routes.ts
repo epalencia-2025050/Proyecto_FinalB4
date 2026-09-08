@@ -20,6 +20,7 @@ router.post(
     body('fecha').optional().isISO8601().withMessage('Fecha inválida'),
     body('categoria').optional().isString().trim(),
     body('estado').optional().isString().trim(),
+    body('esAhorro').optional().isBoolean().withMessage('esAhorro debe ser booleano'),
   ]),
   ingresoController.create,
 );
@@ -33,6 +34,7 @@ router.put(
     body('fecha').optional().isISO8601().withMessage('Fecha inválida'),
     body('categoria').optional().isString().trim(),
     body('estado').optional().isString().trim(),
+    body('esAhorro').optional().isBoolean().withMessage('esAhorro debe ser booleano'),
   ]),
   ingresoController.update,
 );

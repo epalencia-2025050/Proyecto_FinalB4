@@ -37,13 +37,14 @@ export class IngresoController {
   async create(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.userId!;
-      const { monto, descripcion, fecha, categoria, estado } = req.body;
+      const { monto, descripcion, fecha, categoria, estado, esAhorro } = req.body;
       const data = await ingresoService.createIngreso(userId, {
         monto: Number(monto),
         descripcion,
         fecha,
         categoria,
         estado,
+        esAhorro: esAhorro !== undefined ? Boolean(esAhorro) : false,
       });
       res.status(201).json({ message: 'Ingreso registrado exitosamente', data });
     } catch (error: any) {
@@ -55,13 +56,14 @@ export class IngresoController {
     try {
       const userId = req.userId!;
       const id = parseInt(req.params.id, 10);
-      const { monto, descripcion, fecha, categoria, estado } = req.body;
+      const { monto, descripcion, fecha, categoria, estado, esAhorro } = req.body;
       const data = await ingresoService.updateIngreso(id, userId, {
         monto: monto !== undefined ? Number(monto) : undefined,
         descripcion,
         fecha,
         categoria,
         estado,
+        esAhorro: esAhorro !== undefined ? Boolean(esAhorro) : undefined,
       });
       res.status(200).json({ message: 'Ingreso actualizado exitosamente', data });
     } catch (error: any) {

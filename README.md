@@ -1,8 +1,21 @@
-﻿# Gestión de Ingresos
+﻿# Proyecto de Gestion de ingresos
+Este proyecto esta realizado para la gestion de los ingresos o gastos que puede tener 
+una persona o familia, organizando en diferentes secciones, como que tipo de banco almacena los ingresos, registro de gastos mensuales.
 
-Aplicación full-stack para la gestión personal de ingresos y gastos, con autenticación segura, dashboard interactivo con gráficas, historial de transacciones y panel de administración.
+# Tabla de contenidos
+- Tecnologías
+- Que propuesta tiene el proyecto?
+- Como piensa trabajar el proyecto
+- Arquitectura del proyecto
+- Base de datos y autenticación
+- Roles de usuarios
+- Primera parte: DashBoard normal
+- Segunda Parte: DashBoard de ingresos
+- Puntos clave de mi aplicacion
+- Cálculo de IVA e Ingresos
+- Como ejecutar el proyecto
 
-## Tecnologías
+# Tecnologías
 
 ## Backend
 | Tecnología |
@@ -13,243 +26,66 @@ Aplicación full-stack para la gestión personal de ingresos y gastos, con auten
 **jsonwebtoken** 
 **bcryptjs** 
 **express-validator** 
+**Helmet**
 
 ## Frontend
 | Tecnología |
 **Angular**
 **TypeScript**
 **TailwindCSS**
-**Chart.js**
 **Three.js**
-**RxJS**
 
-## Arquitectura del Proyecto
+# Que propuesta tiene el proyecto?
+Es una aplicación centralizada en el control de los recursos financieros, diseñada para ayudar a una persona o familia a registrar, categorizar y visualizar sus ingresos y gastos diarios/mensuales en tiempo real, permitiéndole tomar mejores decisiones sobre su dinero. También trae un apartado de ahorro y reportes claros de los gastos.
 
-Gestión de Ingresos
-├── backend/         
-└── frontend/      
+# Como piensa trabajar el proyecto 
+El primer paso es decidir que tipo de BD quiero relacional o no relacional, En mi caso elegi la opcion de relacional porque se me facilita, tambien se me pidio que le implmentara JWT y GitHub, EL login es la primera parte solicitada para que se vea el avance del proyecto.
 
-## Patrón de capas (Backend)
+la estructura del proyecto es dividirla en dos carpetas el fornted y el backend para facilitar su uso, el backend llevara el codigo para que funcione el codigo y el fronted llevara las vistas para que se funcional.
 
-HTTP Request
-    │
-    ▼
-[ Routes ]         ← Definición de endpoints y validaciones
-    │
-    ▼
-[ Middlewares ]    ← auth, role, validate, error
-    │
-    ▼
-[ Controllers ]    ← Manejo de request/response
-    │
-    ▼
-[ Services ]       ← Lógica de negocio
-    │
-    ▼
-[ Repositories ]   ← Acceso a datos (SQL puro con pg)
-    │
-    ▼
-[ PostgreSQL ]
-`
+# Arquitectura del proyecto
+El proyecto está dividido en dos carpetas principales: frontend y backend, para separar responsabilidades y facilitar su mantenimiento. 
 
-## Estructura de Directorios
+- El backend expone una API REST y el frontend consume esa API, El backend siguie esta arquitectura por capas: Ruta -> Middleware -> Controlador -> Servicio -> Repositorio -> PostgreSQL.
 
-`
-Gestion_de_Ingresos/
-│
-├── backend/
-│   ├── src/
-│   │   ├── app.ts                   
-│   │   ├── server.ts                
-│   │   ├── config/
-│   │   │   └── env.ts               
-│   │   ├── controllers/
-│   │   │   ├── auth.controller.ts
-│   │   │   ├── dashboard.controller.ts
-│   │   │   ├── ingreso.controller.ts
-│   │   │   └── gasto.controller.ts
-│   │   ├── services/
-│   │   │   ├── auth.service.ts
-│   │   │   ├── dashboard.service.ts
-│   │   │   ├── ingreso.service.ts
-│   │   │   └── gasto.service.ts
-│   │   ├── repositories/
-│   │   │   ├── ingreso.repository.ts
-│   │   │   └── gasto.repository.ts
-│   │   ├── middlewares/
-│   │   │   ├── auth.middleware.ts   
-│   │   │   ├── role.middleware.ts   
-│   │   │   ├── validate.middleware.ts
-│   │   │   └── error.middleware.ts
-│   │   ├── routes/
-│   │   │   ├── index.routes.ts
-│   │   │   ├── auth.routes.ts
-│   │   │   ├── dashboard.routes.ts
-│   │   │   ├── ingreso.routes.ts
-│   │   │   └── gasto.routes.ts
-│   │   ├── models/
-│   │   │   └── user.model.ts
-│   │   ├── types/                   
-│   │   └── utils/
-│   │       └── jwt.util.ts          
-│   ├── database/
-│   │   ├── schema.sql              
-│   │   └── seed.sql                 
-│   ├── .env                         
-│   ├── .env.example                 
-│   └── package.json
-│
-└── frontend/
-    └── src/
-        ├── app/
-        │   ├── app.routes.ts        
-        │   ├── app.config.ts        
-        │   ├── core/
-        │   │   ├── guards/
-        │   │   │   ├── auth.guard.ts    
-        │   │   │   └── admin.guard.ts   
-        │   │   ├── interceptors/
-        │   │   │   ├── jwt.interceptor.ts         
-        │   │   │   └── auth-error.interceptor.ts  
-        │   │   ├── services/
-        │   │   │   ├── auth.service.ts
-        │   │   │   └── finanzas.service.ts
-        │   │   └── models/
-        │   └── features/
-        │       ├── auth/pages/login/
-        │       ├── dashboard/pages/home/
-        │       └── admin/pages/users/
-        └── assets/
-            └── icons/               
+- El frontend en Angular sigue el patrón de servicios con signals para el estado (ingresos, categorías, tendencia), guards para proteger rutas privadas, e interceptores HTTP para adjuntar el token JWT a cada petición y manejar sesiones expiradas.
 
+# Base de datos y autenticación
+El primer paso fue decidir el tipo de base de datos: relacional o no relacional. Se eligió PostgreSQL por facilidad de modelado, dado que los ingresos, gastos y usuarios tienen una relación clara entre sí. También se pidió implementar JWT para la autenticación, El login fue lo primero para mostrar avance del proyecto.
 
-## Requisitos Previos
+# Roles de usuarios
+El sistema contiene dos roles: user (usuario normal) y admin. El rol viaja dentro del propio token JWT y se valida en el backend mediante un middleware específico (roleMiddleware), que restringe ciertos endpoints.
 
-Antes de ejecutar el proyecto instala:
-1. **Node.js** v20 
-2. **pnpm** pnpm install
-3. **PostgreSQL** v18 
-4. **Angular CLI** pnpm install -g @angular/cli
+# Primera parte: DashBoard normal
+Se realizara la parte de un dashboar inicial que tendra como funcion poder alvergar otras funciones como: ingresos, egresos, configuracion, reportes y historial de gastos. Cada una tendra su apartado dentro del dashBoard junto con sus respectivas funciones y tambien tendra una grafica en foma de dona inplementada que es de ahorro vs gasto de mes a mes.
 
+# Segunda Parte: DashBoard de ingresos
+Se realizara la parte de ingresar los ingresos de la persona es un tipo formulario que la persona debe de llenar con sus datos bancarios como: su banco, numero de cuenta, tipo de cuenta etc. al ingresar esos datos y la cantidad a ingresar se reiniciara para poder volver a ingresar nuevos ingresos, aparte tambien tendra una grafica mes a mes para ver el flujo de los ingresos.
 
-## Instalación y Ejecución
+# Puntos clave de mi aplicacion
+- control del dinero en tiempo real.
+- visibilidad y habitos en que se gasta.
+- Toma de decisiones sobre el dinero.
+- Mas facilidad para poder manejarlo.
 
-## 1. Clonar el repositorio
-git clone https://github.com/tu-usuario/gestion-de-ingresos.git
-cd gestion-de-ingresos
+# Cálculo de IVA e Ingresos
+- IVA = monto × 0.12.    
+- Neto = monto × 0.88.
+- Pago = PAGO POR HORA / 40 horas semanales.
 
-## 2. Configurar la Base de Datos
+# Como ejecutar el proyecto
+- bajar le proyecto de gitHub. en la terminal escribe "git clone https://github.com/epalencia-2025050/Gestion_de_ingresos.git" despues "cd Gestion_de_ingresos".
 
-Abre **pgAdmin** o la consola de PostgreSQL y ejecuta:
--- Crear la base de datos
-CREATE DATABASE gestion_ingresos;
--- Conectarse a ella
-gestion_ingresos
--- Crear tablas, índices y triggers
-backend/database/schema.sql
--- Insertar usuarios de prueba
-backend/database/seed.sql
+- Una ves dentro verifica que estas en la rama main. escribe "git branch"
 
+- Ve a visual estudio code y abre la carpeta del proyecto, se abriran dos carpetas "fornted y backend".
 
-## 3. Configurar el Backend
-cd backend
-# Copiar plantilla de variables de entorno
-.env
-# Instalar dependencias
-pnpm install
-# Iniciar en modo desarrollo 
-pnpm run dev
+- En el codigo del backend hay una carpeta que dice "database" abre el archivo de schemas.sql y seed.sql ve a potgres y pega el codigo de los dos archivos y ejecutalos precionando "F5" se crearia la base de datos local.
 
-## 4. Configurar el Frontend
-Abre una nueva terminal:
-cd frontend
-# Instalar dependencias
-pnpm install
-pnpm install three
+- Abre en visual la primera terminal y en la terminal, Escribe "cd backend" despues "pnpm install" esperas a que termine y escribes "pnpm run dev" y dejas que termine.
 
-# Iniciar servidor de desarrollo Angular
-pnpm start
+- Abre en visual la segunda termina y en la terminal, Escirbe "cd fornted" despues "pnpm install" esperas a que se instale y escribes "pnpm start"
 
-### 5. Build de Producción (Frontend)
-cd frontend
-pnpm run build
-# Archivos generados en: dist/frontend/
-
-## Variables de Entorno
-Crea el archivo .env
-
-# Servidor
-PORT=3000
-NODE_ENV=development
-
-# JWT
-JWT_SECRET=cambia_esta_clave_por_una_larga_y_aleatoria
-JWT_EXPIRES_IN=24h
-
-# Base de datos (PostgreSQL)
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=tu_contraseña
-DB_NAME=gestion_ingresos
-
-# CORS
-CORS_ORIGIN=http://localhost:4200
-
-
-## Base de Datos
-
-## Diagrama de Tablas
-
-usuarios
-├── id                  SERIAL PK
-├── nombre              VARCHAR(150)
-├── email               VARCHAR(150) UNIQUE
-├── password_hash       VARCHAR(255)         
-├── rol                 ENUM('admin','user')
-├── activo              BOOLEAN
-├── fecha_creacion      TIMESTAMP
-└── fecha_actualizacion TIMESTAMP            
-
-ingresos
-├── id          SERIAL PK
-├── usuario_id  FK → usuarios.id
-├── monto       NUMERIC
-├── descripcion TEXT
-├── categoria   VARCHAR
-├── estado      VARCHAR
-└── fecha       TIMESTAMP
-
-gastos
-├── id          SERIAL PK
-├── usuario_id  FK → usuarios.id
-├── monto       NUMERIC
-├── descripcion TEXT
-├── categoria   VARCHAR
-└── fecha       TIMESTAMP
-
-## Expiración y Logout Automático
-- El auth-error.interceptor.ts captura respuestas 401 del servidor y ejecuta logout() automáticamente.
-- El authGuard verifica si el token está expirado antes de renderizar la ruta protegida:
-
-## API REST — Endpoints
-Base URL: http://localhost:3000/api
-
-### Cálculo de IVA e Ingresos
-IVA   = monto × 0.12     (tasa Guatemala 12%)
-Neto  = monto × 0.88
-Pago  → PAGO POR HORA / 40 horas semanas
-Los datos provienen directamente de GET /dashboard/tendencia, sin datos aleatorios.
-
-### Backend
-pnpm run dev    
-pnpm run build  
-pnpm run start  
-
-### Frontend
-pnpm start        
-pnpm run build     
-pnpm run watch    
+- En la segunda terminal te dara un puerto que es http://localhost:4200/ este copialo y pegalo en el navegador web de tu seleccion, a este punto ya estas dentro de la aplicacion.
 
 *Desarollado por Eduardo Emilio Palencia Mejia.* 
-*Desarrollado como proyecto de gestión de finanzas personales.*

@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import {
   AppNotification,
   CategoriaGasto,
+  ConfiguracionUsuario,
   CreateGastoPayload,
   CreateIngresoPayload,
   DashboardResumen,
@@ -27,18 +28,23 @@ export class FinanzasService {
     gastosPorCobrar: 0,
     totalIngresos: 0,
     totalGastos: 0,
-    porcentajeSaldoMes: 0,
-    porcentajeAhorroMes: 0,
-    estadoCobrados: '-Estable',
-    estadoPorCobrar: 'al dia',
+    porcentajeSaldoMes: null,
+    porcentajeAhorroMes: null,
+    porcentajeEvolucionSemestre: null,
+    porcentajeIngresosCobrados: 0,
+    estadoCobrados: 'Sin movimientos',
+    estadoPorCobrar: 'Al día',
   });
 
+  readonly configuracion = signal<ConfiguracionUsuario | null>(null);
   readonly categorias = signal<CategoriaGasto[]>([]);
   readonly tendencia = signal<TendenciaMensual[]>([]);
   readonly ingresos = signal<Ingreso[]>([]);
   readonly gastos = signal<Gasto[]>([]);
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
+
+  private pendingRequests = 0;
 
   // Notificaciones en tiempo real
   readonly notifications = signal<AppNotification[]>([
@@ -53,18 +59,23 @@ export class FinanzasService {
 
   // Avatar personalizado del usuario
   readonly userAvatar = signal<string>(
-    localStorage.getItem('gi_user_avatar') ||
-      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=120&auto=format&fit=crop&q=80'
+    'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=120&auto=format&fit=crop&q=80'
   );
 
   constructor(private readonly http: HttpClient) {}
 
   setAvatar(newAvatarUrl: string): void {
-    localStorage.setItem('gi_user_avatar', newAvatarUrl);
     this.userAvatar.set(newAvatarUrl);
-    this.addNotification({
-      tipo: 'sistema',
-      mensaje: 'Foto de perfil actualizada exitosamente',
+    this.updateConfiguracion({ avatarUrl: newAvatarUrl }).subscribe({
+      next: () => {
+        this.addNotification({
+          tipo: 'sistema',
+          mensaje: 'Foto de perfil actualizada y guardada en la base de datos',
+        });
+      },
+      error: (err) => {
+        this.handleError(err, 'Error al guardar foto de perfil');
+      }
     });
   }
 
@@ -88,40 +99,107 @@ export class FinanzasService {
     this.notifications.set([]);
   }
 
+  private startRequest(): void {
+    this.pendingRequests++;
+    this.loading.set(true);
+  }
+
+  private finishRequest(): void {
+    this.pendingRequests = Math.max(0, this.pendingRequests - 1);
+    if (this.pendingRequests === 0) {
+      this.loading.set(false);
+    }
+  }
+
   /** Carga inicial completa de datos */
   loadAll(): void {
-    this.loading.set(true);
     this.error.set(null);
-
     this.loadResumen();
     this.loadCategorias();
     this.loadTendencia();
     this.loadIngresos();
     this.loadGastos();
+    this.loadConfiguracion();
+  }
+
+  loadConfiguracion(): void {
+    this.startRequest();
+    this.http.get<{ data: ConfiguracionUsuario }>(`${this.apiUrl}/configuracion`).subscribe({
+      next: (res) => {
+        this.configuracion.set(res.data);
+        if (res.data?.avatarUrl) {
+          this.userAvatar.set(res.data.avatarUrl);
+        }
+        this.finishRequest();
+      },
+      error: (err) => {
+        this.handleError(err, 'Error al cargar configuración de usuario');
+        this.finishRequest();
+      }
+    });
+  }
+
+  getConfiguracion(): Observable<{ data: ConfiguracionUsuario }> {
+    return this.http.get<{ data: ConfiguracionUsuario }>(`${this.apiUrl}/configuracion`);
+  }
+
+  updateConfiguracion(payload: Partial<ConfiguracionUsuario>): Observable<any> {
+    return this.http.put<{ message: string; data: ConfiguracionUsuario }>(`${this.apiUrl}/configuracion`, payload).pipe(
+      tap((res) => {
+        if (res.data) {
+          this.configuracion.set(res.data);
+          if (res.data.avatarUrl) {
+            this.userAvatar.set(res.data.avatarUrl);
+          }
+        }
+      })
+    );
   }
 
   loadResumen(): void {
+    this.startRequest();
     this.http.get<{ data: DashboardResumen }>(`${this.apiUrl}/dashboard/resumen`).subscribe({
-      next: (res) => this.resumen.set(res.data),
-      error: (err) => this.handleError(err, 'Error al cargar resumen'),
+      next: (res) => {
+        this.resumen.set(res.data);
+        this.finishRequest();
+      },
+      error: (err) => {
+        this.handleError(err, 'Error al cargar resumen');
+        this.finishRequest();
+      },
     });
   }
 
   loadCategorias(): void {
+    this.startRequest();
     this.http.get<{ data: CategoriaGasto[] }>(`${this.apiUrl}/dashboard/categorias`).subscribe({
-      next: (res) => this.categorias.set(res.data),
-      error: (err) => this.handleError(err, 'Error al cargar categorías'),
+      next: (res) => {
+        this.categorias.set(res.data);
+        this.finishRequest();
+      },
+      error: (err) => {
+        this.handleError(err, 'Error al cargar categorías');
+        this.finishRequest();
+      },
     });
   }
 
   loadTendencia(months: number = 6): void {
+    this.startRequest();
     this.http.get<{ data: TendenciaMensual[] }>(`${this.apiUrl}/dashboard/tendencia?months=${months}`).subscribe({
-      next: (res) => this.tendencia.set(res.data),
-      error: (err) => this.handleError(err, 'Error al cargar tendencia'),
+      next: (res) => {
+        this.tendencia.set(res.data);
+        this.finishRequest();
+      },
+      error: (err) => {
+        this.handleError(err, 'Error al cargar tendencia');
+        this.finishRequest();
+      },
     });
   }
 
   loadIngresos(search?: string): void {
+    this.startRequest();
     let params = new HttpParams();
     if (search && search.trim()) {
       params = params.set('search', search.trim());
@@ -129,13 +207,17 @@ export class FinanzasService {
     this.http.get<{ data: Ingreso[] }>(`${this.apiUrl}/ingresos`, { params }).subscribe({
       next: (res) => {
         this.ingresos.set(res.data);
-        this.loading.set(false);
+        this.finishRequest();
       },
-      error: (err) => this.handleError(err, 'Error al cargar ingresos'),
+      error: (err) => {
+        this.handleError(err, 'Error al cargar ingresos');
+        this.finishRequest();
+      },
     });
   }
 
   loadGastos(search?: string): void {
+    this.startRequest();
     let params = new HttpParams();
     if (search && search.trim()) {
       params = params.set('search', search.trim());
@@ -143,9 +225,12 @@ export class FinanzasService {
     this.http.get<{ data: Gasto[] }>(`${this.apiUrl}/gastos`, { params }).subscribe({
       next: (res) => {
         this.gastos.set(res.data);
-        this.loading.set(false);
+        this.finishRequest();
       },
-      error: (err) => this.handleError(err, 'Error al cargar gastos'),
+      error: (err) => {
+        this.handleError(err, 'Error al cargar gastos');
+        this.finishRequest();
+      },
     });
   }
 
