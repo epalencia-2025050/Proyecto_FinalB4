@@ -126,41 +126,38 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   ];
 
   // Fuentes de ingreso calculadas en tiempo real
-  readonly bankInfoSignal = signal<any>(this.loadBankInfo());
+  readonly defaultBankInfo = {
+    nombreBanco: 'Banco Industrial',
+    numeroCuenta: '',
+    tipoCuenta: 'Cuenta corriente',
+    taxId: '',
+    frecuenciaPago: 'Mensual',
+    currency: 'GTQ (Q)',
+  };
 
-  readonly displaySaldoTotal = computed(() => {
-    const incomes = this.finanzasService.ingresos();
-    const expenses = this.finanzasService.gastos();
-    
-    const totalCorriente = incomes
-      .filter(i => !i.descripcion.includes('[AHORRO]'))
-      .reduce((acc, curr) => acc + curr.monto, 0);
-      
-    const totalGastos = expenses.reduce((acc, curr) => acc + curr.monto, 0);
-    
-    return totalCorriente - totalGastos;
+  readonly bankInfoSignal = computed(() => {
+    const cfg = this.finanzasService.configuracion();
+    if (!cfg) return this.defaultBankInfo;
+    return {
+      nombreBanco: cfg.nombreBanco || 'Banco Industrial',
+      numeroCuenta: cfg.numeroCuenta || '',
+      tipoCuenta: cfg.tipoCuenta || 'Cuenta corriente',
+      taxId: cfg.taxId || '',
+      frecuenciaPago: cfg.frecuenciaPago || 'Mensual',
+      currency: cfg.moneda || 'GTQ (Q)',
+    };
   });
 
-  readonly displayAhorroAcumulado = computed(() => {
-    const incomes = this.finanzasService.ingresos();
-    
-    const totalAhorro = incomes
-      .filter(i => i.descripcion.includes('[AHORRO]'))
-      .reduce((acc, curr) => acc + curr.monto, 0);
-      
-    return totalAhorro;
-  });
+  // Saldo y Ahorro unificados: Consumen directamente la única fuente de verdad (backend)
+  readonly displaySaldoTotal = computed(() => this.finanzasService.resumen().saldoTotal);
+  readonly displayAhorroAcumulado = computed(() => this.finanzasService.resumen().ahorroAcumulado);
 
   readonly fuentesIngresoBreakdown = computed(() => {
     const incomes = this.finanzasService.ingresos();
     const total = incomes.reduce((acc, curr) => acc + curr.monto, 0);
 
     if (total === 0) {
-      return [
-        { nombre: 'Salario Base', porcentaje: 80 },
-        { nombre: 'Freelance', porcentaje: 15 },
-        { nombre: 'Inversiones', porcentaje: 5 },
-      ];
+      return [];
     }
 
     const salarioTotal = incomes
@@ -175,17 +172,23 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       .filter((i) => i.categoria.toLowerCase().includes('inversion') || i.categoria.toLowerCase().includes('comision'))
       .reduce((acc, curr) => acc + curr.monto, 0);
 
-    const otrosTotal = total - (salarioTotal + freelanceTotal + inversionesTotal);
+    const otrosTotal = Math.max(0, total - (salarioTotal + freelanceTotal + inversionesTotal));
 
-    const salPct = Math.max(5, Math.round((salarioTotal / total) * 100)) || 80;
-    const freePct = Math.max(3, Math.round((freelanceTotal / total) * 100)) || 15;
-    const invPct = Math.max(2, Math.round(((inversionesTotal + Math.max(0, otrosTotal)) / total) * 100)) || 5;
+    const result: { nombre: string; porcentaje: number }[] = [];
+    if (salarioTotal > 0) {
+      result.push({ nombre: 'Salario Base', porcentaje: Math.round((salarioTotal / total) * 100) });
+    }
+    if (freelanceTotal > 0) {
+      result.push({ nombre: 'Freelance', porcentaje: Math.round((freelanceTotal / total) * 100) });
+    }
+    if (inversionesTotal > 0) {
+      result.push({ nombre: 'Inversiones', porcentaje: Math.round((inversionesTotal / total) * 100) });
+    }
+    if (otrosTotal > 0) {
+      result.push({ nombre: 'Otros', porcentaje: Math.round((otrosTotal / total) * 100) });
+    }
 
-    return [
-      { nombre: 'Salario Base', porcentaje: salPct },
-      { nombre: 'Freelance', porcentaje: freePct },
-      { nombre: 'Inversiones', porcentaje: invPct },
-    ];
+    return result;
   });
 
   // Lista combinada de transacciones filtradas por búsqueda
@@ -257,6 +260,31 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.updateEvolutionChart();
       }
     });
+
+    // Sincronizar formulario de configuración con los datos persistidos en PostgreSQL
+    effect(() => {
+      const cfg = this.finanzasService.configuracion();
+      if (cfg && this.incomeConfigForm) {
+        this.incomeConfigForm.patchValue(
+          {
+            nombreBanco: cfg.nombreBanco || 'Banco Industrial',
+            numeroCuenta: cfg.numeroCuenta || '',
+            tipoCuenta: cfg.tipoCuenta || 'Cuenta corriente',
+            taxId: cfg.taxId || '',
+            frecuenciaPago: cfg.frecuenciaPago || 'Mensual',
+            currency: cfg.moneda || 'GTQ (Q)',
+          },
+          { emitEvent: false }
+        );
+      }
+    });
+  }
+
+  getLocalDateString(d: Date = new Date()): string {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   ngOnInit(): void {
@@ -276,10 +304,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private initForms(): void {
-    const today = new Date().toISOString().split('T')[0];
-
-    // Cargar datos bancarios guardados en local
-    const savedBankInfo = this.loadBankInfo();
+    const today = this.getLocalDateString();
 
     this.incomeForm = this.fb.group({
       monto: [null, [Validators.required, Validators.min(0.01)]],
@@ -303,14 +328,14 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Formulario de configuración de salario, información bancaria y datos tributarios
     // =========================================================================
     this.incomeConfigForm = this.fb.group({
-      montoIngreso: [savedBankInfo.montoIngreso || null, [Validators.required, Validators.min(1)]],
-      sueldoHora: [{ value: savedBankInfo.sueldoHora || 0, disabled: false }],
-      nombreBanco: [savedBankInfo.nombreBanco || 'Banco Industrial', Validators.required],
-      numeroCuenta: [savedBankInfo.numeroCuenta || '093-49291-01', Validators.required],
-      tipoCuenta: [savedBankInfo.tipoCuenta || 'Cuenta corriente', Validators.required],
-      taxId: [savedBankInfo.taxId || '839218-K', Validators.required],
-      frecuenciaPago: [savedBankInfo.frecuenciaPago || 'Mensual', Validators.required],
-      currency: [savedBankInfo.currency || 'GTQ (Q)', Validators.required],
+      montoIngreso: [null, [Validators.required, Validators.min(1)]],
+      sueldoHora: [{ value: 0, disabled: false }],
+      nombreBanco: [this.defaultBankInfo.nombreBanco, Validators.required],
+      numeroCuenta: [this.defaultBankInfo.numeroCuenta, Validators.required],
+      tipoCuenta: [this.defaultBankInfo.tipoCuenta, Validators.required],
+      taxId: [this.defaultBankInfo.taxId, Validators.required],
+      frecuenciaPago: [this.defaultBankInfo.frecuenciaPago, Validators.required],
+      currency: [this.defaultBankInfo.currency, Validators.required],
     });
 
     // Cálculo dinámico automático: Sueldo por hora basado en 160 horas al mes
@@ -365,6 +390,9 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   // =========================================================================
   // PERSISTENCIA DE INGRESO Y PERFIL BANCARIO (POSTGRESQL + LOCALSTORAGE)
   // =========================================================================
+  // =========================================================================
+  // PERSISTENCIA DE INGRESO Y PERFIL BANCARIO (POSTGRESQL)
+  // =========================================================================
   saveIncomeConfiguration(): void {
     if (this.incomeConfigForm.invalid) {
       this.incomeConfigForm.markAllAsTouched();
@@ -375,91 +403,49 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.incomeConfigSuccess.set(null);
 
     const values = this.incomeConfigForm.value;
+    const isAhorro = values.tipoCuenta === 'Cuenta de ahorro';
 
-    // 1. Guardar y persistir información bancaria en almacenamiento local
+    // 1. Persistir información bancaria en PostgreSQL vía API
     const bankDataToSave = {
       nombreBanco: values.nombreBanco,
       numeroCuenta: values.numeroCuenta,
       tipoCuenta: values.tipoCuenta,
       taxId: values.taxId,
       frecuenciaPago: values.frecuenciaPago,
-      currency: values.currency,
+      moneda: values.currency,
     };
-    localStorage.setItem('gi_banking_info', JSON.stringify(bankDataToSave));
-    this.bankInfoSignal.set(bankDataToSave);
 
-    // 2. Registrar el nuevo ingreso financiero en la base de datos PostgreSQL
-    const today = new Date().toISOString().split('T')[0];
+    this.finanzasService.updateConfiguracion(bankDataToSave).subscribe({
+      error: (err) => console.error('Error al actualizar configuración bancaria:', err),
+    });
+
+    // 2. Registrar el nuevo ingreso financiero en PostgreSQL
+    const today = this.getLocalDateString();
     this.finanzasService
       .createIngreso({
         monto: Number(values.montoIngreso),
-        descripcion: (values.tipoCuenta === 'Cuenta de ahorro' ? '[AHORRO] ' : '') + `Salario ${values.frecuenciaPago} - ${values.nombreBanco}`,
+        descripcion: `Salario ${values.frecuenciaPago} - ${values.nombreBanco}`,
         fecha: today,
         categoria: 'Salario',
         estado: 'completado',
+        esAhorro: isAhorro,
       })
       .subscribe({
         next: () => {
           this.incomeConfigSubmitting.set(false);
-          this.incomeConfigSuccess.set('¡Ingreso guardado exitosamente en la base de datos!');
-          // Limpiar el campo de monto para permitir nuevos ingresos sin reescribir datos bancarios
+          this.incomeConfigSuccess.set('¡Ingreso y configuración guardados exitosamente en la base de datos!');
           this.incomeConfigForm.patchValue({
             montoIngreso: null,
             sueldoHora: 0,
           });
           setTimeout(() => this.incomeConfigSuccess.set(null), 4000);
         },
-        error: () => {
+        error: (err) => {
           this.incomeConfigSubmitting.set(false);
-          this.incomeConfigSuccess.set('Configuración bancaria actualizada localmente.');
+          this.incomeConfigSuccess.set(err?.error?.message || 'Error al registrar ingreso.');
           setTimeout(() => this.incomeConfigSuccess.set(null), 4000);
         },
       });
-  }
-
-  private loadBankInfo(): any {
-    try {
-      const raw = localStorage.getItem('gi_banking_info');
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  }
-
-  private getMonthlyData() {
-    const incomes = this.finanzasService.ingresos();
-    const expenses = this.finanzasService.gastos();
-    const result = [];
-    const now = new Date();
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const yearStr = String(d.getFullYear());
-      const monthStr = String(d.getMonth() + 1).padStart(2, '0');
-      const prefix = `${yearStr}-${monthStr}`;
-
-      const mIncomes = incomes.filter(x => (x.fecha || '').startsWith(prefix));
-      const mExpenses = expenses.filter(x => (x.fecha || '').startsWith(prefix));
-
-      const gastos = mExpenses.reduce((acc, c) => acc + Number(c.monto), 0);
-      const ahorro = mIncomes.filter(x => x.descripcion.includes('[AHORRO]')).reduce((acc, c) => acc + Number(c.monto), 0);
-      const corriente = mIncomes.filter(x => !x.descripcion.includes('[AHORRO]')).reduce((acc, c) => acc + Number(c.monto), 0);
-      
-      let valorGrafica = 25;
-      if (ahorro > 0 || gastos > 0) {
-        valorGrafica = gastos > 0 ? Math.min(80, Math.max(20, Math.round((gastos / ((ahorro + corriente) || gastos)) * 75))) : 25;
-      }
-
-      result.push({
-        mesCompleto: d.toLocaleString('es-ES', { month: 'long' }),
-        mes: d.toLocaleString('en-US', { month: 'short' }),
-        ano: d.getFullYear(),
-        gastos,
-        ahorro,
-        corriente,
-        valorGrafica
-      });
-    }
-    return result;
   }
 
   // --- Gráfica Donut (Gastos por categorías) ---
@@ -470,20 +456,28 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (this.donutChart) {
       this.donutChart.destroy();
+      this.donutChart = null;
     }
 
     const cats = this.finanzasService.categorias();
+    const totalGastos = cats.reduce((acc, c) => acc + c.total, 0);
+
+    // Si no hay gastos registrados, no renderizar gráfica con datos fabricados
+    if (totalGastos === 0) {
+      return;
+    }
+
     const labels = cats.map((c) => c.categoria);
-    const data = cats.map((c) => (c.total > 0 ? c.total : 0.0001));
+    const data = cats.map((c) => c.total);
     const backgroundColors = ['#0b3d4a', '#f2a625', '#1ea6b6', '#ffffff'];
 
     this.donutChart = new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels: labels.length ? labels : ['Vivienda', 'Alimentación', 'Transporte', 'Otros'],
+        labels: labels,
         datasets: [
           {
-            data: data.length ? data : [40, 30, 20, 10],
+            data: data,
             backgroundColor: backgroundColors,
             borderColor: '#1a8881',
             borderWidth: 3,
@@ -525,12 +519,19 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const cats = this.finanzasService.categorias();
+    const totalGastos = cats.reduce((acc, c) => acc + c.total, 0);
+    if (totalGastos === 0) {
+      this.donutChart.destroy();
+      this.donutChart = null;
+      return;
+    }
+
     this.donutChart.data.labels = cats.map((c) => c.categoria);
     this.donutChart.data.datasets[0].data = cats.map((c) => c.total);
     this.donutChart.update();
   }
 
-  // --- Gráfica de Barras (Tendencia de ahorro vs gasto) ---
+  // --- Gráfica de Barras (Tendencia de ahorro del backend) ---
   private initTrendChart(): void {
     if (!this.trendCanvas) return;
     const ctx = this.trendCanvas.nativeElement.getContext('2d');
@@ -538,22 +539,21 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (this.trendChart) {
       this.trendChart.destroy();
+      this.trendChart = null;
     }
 
-    const trend = this.getMonthlyData();
+    const trend = this.finanzasService.tendencia();
     const labels = trend.map((t) => t.mes);
     const data = trend.map((t) => t.ahorro);
 
     this.trendChart = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: labels.length
-          ? labels
-          : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'],
+        labels: labels,
         datasets: [
           {
-            label: 'Tendencia',
-            data: data.length ? data : [75, 60, 45, 30, 60, 45, 75, 60, 30, 60, 45, 45],
+            label: 'Ahorro',
+            data: data,
             backgroundColor: '#dca044',
             hoverBackgroundColor: '#f2a625',
             borderRadius: {
@@ -584,12 +584,12 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
             callbacks: {
               title: (items) => {
                 const idx = items[0]?.dataIndex ?? 0;
-                const item = this.getMonthlyData()[idx];
+                const item = this.finanzasService.tendencia()[idx];
                 return item ? `${item.mesCompleto} ${item.ano}` : items[0]?.label ?? '';
               },
               label: (context) => {
                 const idx = context.dataIndex;
-                const item = this.getMonthlyData()[idx];
+                const item = this.finanzasService.tendencia()[idx];
                 if (item) {
                   return `Ahorro: Q${item.ahorro.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
                 }
@@ -641,17 +641,13 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    const trend = this.getMonthlyData();
-    this.trendChart.data.labels = trend.length
-      ? trend.map((t) => t.mes)
-      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
-    this.trendChart.data.datasets[0].data = trend.length
-      ? trend.map((t) => t.ahorro)
-      : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const trend = this.finanzasService.tendencia();
+    this.trendChart.data.labels = trend.map((t) => t.mes);
+    this.trendChart.data.datasets[0].data = trend.map((t) => t.ahorro);
     this.trendChart.update();
   }
 
-  // --- Gráfica de Área (Evolución de ingresos para la pantalla de Ingresos) ---
+  // --- Gráfica de Área (Evolución de ingresos de los últimos 6 meses) ---
   private initEvolutionChart(): void {
     if (!this.evolutionCanvas?.nativeElement) return;
     const ctx = this.evolutionCanvas.nativeElement.getContext('2d');
@@ -662,9 +658,9 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.evolutionChart = null;
     }
 
-    const trend = this.getMonthlyData().slice(-6);
-    const labels = trend.length ? trend.map((t) => t.mes) : ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
-    const data = trend.length ? trend.map((t) => t.ahorro) : [0, 0, 0, 0, 0, 0];
+    const trend = this.finanzasService.tendencia().slice(-6);
+    const labels = trend.map((t) => t.mes);
+    const data = trend.map((t) => t.ingresos);
     const maxVal = Math.max(...data, 0);
 
     const gradient = ctx.createLinearGradient(0, 0, 0, 140);
@@ -677,7 +673,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         labels: labels,
         datasets: [
           {
-            label: 'Ahorro',
+            label: 'Ingresos',
             data: data,
             borderColor: '#28bed0',
             borderWidth: 2.5,
@@ -705,7 +701,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
             padding: 10,
             cornerRadius: 8,
             callbacks: {
-              label: (ctx) => ` Ahorro: Q${(ctx.parsed.y || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+              label: (ctx) => ` Ingresos: Q${(ctx.parsed.y || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
             },
           },
         },
@@ -731,18 +727,15 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.initEvolutionChart();
       return;
     }
-    const trend = this.getMonthlyData().slice(-6);
-    if (trend.length > 0) {
-      this.evolutionChart.data.labels = trend.map((t) => t.mes);
-      const data = trend.map((t) => t.ahorro);
-      this.evolutionChart.data.datasets[0].data = data;
-      this.evolutionChart.data.datasets[0].label = 'Ahorro';
-      const maxVal = Math.max(...data, 0);
-      if (this.evolutionChart.options.scales?.['y']) {
-        this.evolutionChart.options.scales['y'].suggestedMax = maxVal > 0 ? maxVal * 1.15 : 1000;
-      }
-      this.evolutionChart.update();
+    const trend = this.finanzasService.tendencia().slice(-6);
+    this.evolutionChart.data.labels = trend.map((t) => t.mes);
+    this.evolutionChart.data.datasets[0].data = trend.map((t) => t.ingresos);
+    this.evolutionChart.data.datasets[0].label = 'Ingresos';
+    const maxVal = Math.max(...trend.map((t) => t.ingresos), 0);
+    if (this.evolutionChart.options.scales?.['y']) {
+      this.evolutionChart.options.scales['y'].suggestedMax = maxVal > 0 ? maxVal * 1.15 : 1000;
     }
+    this.evolutionChart.update();
   }
 
   private destroyCharts(): void {
@@ -782,6 +775,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // --- Modales de Crear / Editar ---
+  // --- Modales de Crear / Editar ---
   openAddIncomeModal(): void {
     this.editingItem.set(null);
     this.formError.set(null);
@@ -789,7 +783,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.incomeForm.reset({
       monto: null,
       descripcion: '',
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: this.getLocalDateString(),
       categoria: 'Salario',
       estado: 'completado',
       tipoCuenta: 'Cuenta corriente',
@@ -805,7 +799,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.expenseForm.reset({
       monto: null,
       descripcion: '',
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: this.getLocalDateString(),
       categoria: 'Alimentación',
       estado: 'pagado',
     });
@@ -819,24 +813,25 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editingItem.set({ type: item.transactionType, data: item });
 
     if (item.transactionType === 'ingreso') {
-      const isAhorro = item.descripcion.includes('[AHORRO]');
-      const cleanDesc = item.descripcion.replace('[AHORRO] ', '');
+      const ingresoItem = item as Ingreso;
+      const isAhorro = Boolean(ingresoItem.esAhorro);
       this.incomeForm.patchValue({
-        monto: item.monto,
-        descripcion: cleanDesc,
-        fecha: item.fecha.split('T')[0],
-        categoria: item.categoria,
-        estado: item.estado,
+        monto: ingresoItem.monto,
+        descripcion: ingresoItem.descripcion,
+        fecha: ingresoItem.fecha ? ingresoItem.fecha.split('T')[0] : this.getLocalDateString(),
+        categoria: ingresoItem.categoria,
+        estado: ingresoItem.estado,
         tipoCuenta: isAhorro ? 'Cuenta de ahorro' : 'Cuenta corriente',
       });
       this.showIncomeModal.set(true);
     } else {
+      const gastoItem = item as Gasto;
       this.expenseForm.patchValue({
-        monto: item.monto,
-        descripcion: item.descripcion,
-        fecha: item.fecha.split('T')[0],
-        categoria: item.categoria,
-        estado: item.estado,
+        monto: gastoItem.monto,
+        descripcion: gastoItem.descripcion,
+        fecha: gastoItem.fecha ? gastoItem.fecha.split('T')[0] : this.getLocalDateString(),
+        categoria: gastoItem.categoria,
+        estado: gastoItem.estado,
       });
       this.showExpenseModal.set(true);
     }
@@ -862,11 +857,16 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.formError.set(null);
 
     const rawValues = this.incomeForm.value;
-    const descBase = rawValues.descripcion.replace('[AHORRO] ', '');
-    const finalDesc = rawValues.tipoCuenta === 'Cuenta de ahorro' ? `[AHORRO] ${descBase}` : descBase;
+    const isAhorro = rawValues.tipoCuenta === 'Cuenta de ahorro';
     
-    const values = { ...rawValues, descripcion: finalDesc };
-    delete values.tipoCuenta;
+    const values = {
+      monto: Number(rawValues.monto),
+      descripcion: String(rawValues.descripcion).trim(),
+      fecha: rawValues.fecha,
+      categoria: rawValues.categoria,
+      estado: rawValues.estado,
+      esAhorro: isAhorro,
+    };
 
     const isEdit = this.editingItem();
 
