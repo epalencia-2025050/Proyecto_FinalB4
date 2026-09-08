@@ -905,13 +905,27 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.formSubmitting.set(true);
     this.formError.set(null);
 
-    const values = this.expenseForm.value;
+    const rawValues = this.expenseForm.value;
+    const values = {
+      monto: Number(rawValues.monto),
+      descripcion: String(rawValues.descripcion).trim(),
+      fecha: rawValues.fecha,
+      categoria: rawValues.categoria,
+      estado: rawValues.estado,
+    };
     const isEdit = this.editingItem();
 
     if (isEdit && isEdit.type === 'gasto') {
       this.finanzasService.updateGasto(isEdit.data.id, values).subscribe({
         next: () => {
           this.formSubmitting.set(false);
+          this.expenseForm.reset({
+            monto: null,
+            descripcion: '',
+            fecha: this.getLocalDateString(),
+            categoria: 'Alimentación',
+            estado: 'pagado',
+          });
           this.closeModals();
         },
         error: (err) => {
@@ -923,6 +937,13 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.finanzasService.createGasto(values).subscribe({
         next: () => {
           this.formSubmitting.set(false);
+          this.expenseForm.reset({
+            monto: null,
+            descripcion: '',
+            fecha: this.getLocalDateString(),
+            categoria: 'Alimentación',
+            estado: 'pagado',
+          });
           this.closeModals();
         },
         error: (err) => {

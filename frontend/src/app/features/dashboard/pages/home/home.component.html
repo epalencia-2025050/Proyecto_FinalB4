@@ -1207,17 +1207,26 @@
   }
 
   <!-- ======================================================== -->
+  <!-- ======================================================== -->
   <!-- MODAL: AGREGAR / EDITAR GASTO -->
   <!-- ======================================================== -->
   @if (showExpenseModal()) {
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div class="w-full max-w-md bg-[#124b60] border border-white/20 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+      <div class="w-full max-w-[450px] bg-[#124b60] border border-white/20 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
         
+        <!-- Header: Título y Botón Cerrar (X) -->
         <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
-          <h3 class="text-xl font-bold text-white">
+          <h3 class="text-xl font-bold text-white tracking-wide">
             {{ editingItem() ? 'Editar Gasto' : 'Agregar Gasto' }}
           </h3>
-          <button (click)="closeModals()" class="text-white/60 hover:text-white text-xl">✕</button>
+          <button 
+            type="button"
+            (click)="closeModals()" 
+            class="text-white/60 hover:text-white text-xl p-1 rounded-lg transition-colors leading-none"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
         </div>
 
         @if (formError()) {
@@ -1228,72 +1237,92 @@
 
         <form [formGroup]="expenseForm" (ngSubmit)="saveExpense()" class="flex flex-col gap-4">
           
-          <div class="flex flex-col gap-1">
+          <!-- Monto (Q) -->
+          <div class="flex flex-col gap-1.5">
             <label class="text-xs font-semibold text-[#95b5bc]">Monto (Q)</label>
             <input 
               type="number" 
               step="0.01" 
               formControlName="monto" 
               placeholder="Ej. 850.00"
-              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881]/40 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10"
+              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881]/40 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 transition-all"
             />
           </div>
 
-          <div class="flex flex-col gap-1">
+          <!-- Descripción -->
+          <div class="flex flex-col gap-1.5">
             <label class="text-xs font-semibold text-[#95b5bc]">Descripción</label>
             <input 
               type="text" 
               formControlName="descripcion" 
               placeholder="Ej. Alquiler / Supermercado / Combustible"
-              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881]/40 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10"
+              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881]/40 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 transition-all"
             />
           </div>
 
-          <div class="flex flex-col gap-1">
+          <!-- Categoría de Gasto -->
+          <div class="flex flex-col gap-1.5">
             <label class="text-xs font-semibold text-[#95b5bc]">Categoría de Gasto</label>
-            <select 
-              formControlName="categoria" 
-              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881] text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10"
-            >
-              <option value="Vivienda">Vivienda</option>
-              <option value="Alimentación">Alimentación</option>
-              <option value="Transporte">Transporte</option>
-              <option value="Otros">Otros</option>
-            </select>
+            <div class="relative">
+              <select 
+                formControlName="categoria" 
+                class="w-full h-11 rounded-xl px-4 pr-10 text-sm bg-[#1a8881] text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 appearance-none cursor-pointer"
+              >
+                <option value="Vivienda" class="bg-[#124b60] text-white">Vivienda</option>
+                <option value="Alimentación" class="bg-[#124b60] text-white">Alimentación</option>
+                <option value="Transporte" class="bg-[#124b60] text-white">Transporte</option>
+                <option value="Otros" class="bg-[#124b60] text-white">Otros</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-white/70">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
           </div>
 
-          <div class="flex flex-col gap-1">
+          <!-- Fecha -->
+          <div class="flex flex-col gap-1.5">
             <label class="text-xs font-semibold text-[#95b5bc]">Fecha</label>
             <input 
               type="date" 
               formControlName="fecha" 
-              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881] text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10"
+              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881] text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 transition-all cursor-pointer"
             />
           </div>
 
-          <div class="flex flex-col gap-1">
+          <!-- Estado -->
+          <div class="flex flex-col gap-1.5">
             <label class="text-xs font-semibold text-[#95b5bc]">Estado</label>
-            <select 
-              formControlName="estado" 
-              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881] text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10"
-            >
-              <option value="pagado">Pagado / Cobrado</option>
-              <option value="pendiente">Pendiente / Por Cobrar</option>
-            </select>
+            <div class="relative">
+              <select 
+                formControlName="estado" 
+                class="w-full h-11 rounded-xl px-4 pr-10 text-sm bg-[#1a8881] text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 appearance-none cursor-pointer"
+              >
+                <option value="pagado" class="bg-[#124b60] text-white">Pagado / Cobrado</option>
+                <option value="pendiente" class="bg-[#124b60] text-white">Pendiente / Por Cobrar</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-white/70">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </div>
           </div>
 
-          <div class="flex justify-end gap-3 pt-3">
+          <!-- Botones de Acción -->
+          <div class="flex items-center justify-end gap-3 pt-3">
             <button 
               type="button" 
               (click)="closeModals()" 
-              class="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold"
+              class="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-all active:scale-95"
             >
               Cancelar
             </button>
             <button 
               type="submit" 
               [disabled]="formSubmitting()"
-              class="px-6 py-2.5 rounded-xl bg-[#f2a625] hover:bg-[#e0951b] text-white text-xs font-bold shadow-lg transition-all disabled:opacity-50"
+              class="px-6 py-2.5 rounded-xl bg-[#f2a625] hover:bg-[#e0951b] text-[#2b2d33] text-xs font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50"
             >
               {{ formSubmitting() ? 'Guardando...' : 'Guardar Gasto' }}
             </button>
