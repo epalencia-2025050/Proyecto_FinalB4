@@ -345,6 +345,19 @@
         <p class="text-xs sm:text-sm text-[#95b5bc] font-normal mt-0.5">Vista general de su estado de ingresos</p>
       </div>
 
+      <!-- ALERTA DE ERROR SI FALLA EL BACKEND -->
+      @if (finanzasService.error()) {
+        <div class="mb-4 p-4 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-200 text-xs flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>{{ finanzasService.error() }}</span>
+          </div>
+          <button (click)="finanzasService.error.set(null); finanzasService.refreshDashboard()" class="text-xs text-rose-300 hover:text-white underline font-medium">Reintentar</button>
+        </div>
+      }
+
       <!-- 4 TARJETAS PRINCIPALES (GRADIENTE A1: #1a8881 A #285e6d) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-6">
         
@@ -353,11 +366,17 @@
           <div>
             <span class="text-xs text-[#95b5bc] font-medium tracking-wide">Saldo total</span>
             <div class="text-2xl xl:text-3xl font-extrabold text-white tracking-tight mt-1 truncate">
-              {{ formatMoney(displaySaldoTotal()) }}
+              {{ formatMoney(finanzasService.resumen().saldoTotal) }}
             </div>
           </div>
           <div class="text-[11px] text-[#95b5bc] mt-3 flex items-center gap-1 font-medium">
-            <span>+24% este mes</span>
+            @if (finanzasService.resumen().porcentajeSaldoMes !== null) {
+              <span [class.text-emerald-300]="finanzasService.resumen().porcentajeSaldoMes! >= 0" [class.text-rose-300]="finanzasService.resumen().porcentajeSaldoMes! < 0">
+                {{ finanzasService.resumen().porcentajeSaldoMes! >= 0 ? '+' : '' }}{{ finanzasService.resumen().porcentajeSaldoMes }}% este mes
+              </span>
+            } @else {
+              <span class="text-white/40">Sin datos previos</span>
+            }
           </div>
         </div>
 
@@ -366,11 +385,17 @@
           <div>
             <span class="text-xs text-[#95b5bc] font-medium tracking-wide">Ahorro acumulado</span>
             <div class="text-2xl xl:text-3xl font-extrabold text-white tracking-tight mt-1 truncate">
-              {{ formatMoney(displayAhorroAcumulado()) }}
+              {{ formatMoney(finanzasService.resumen().ahorroAcumulado) }}
             </div>
           </div>
           <div class="text-[11px] text-[#95b5bc] mt-3 flex items-center gap-1 font-medium">
-            <span>+ 5.1 % este mes</span>
+            @if (finanzasService.resumen().porcentajeAhorroMes !== null) {
+              <span [class.text-emerald-300]="finanzasService.resumen().porcentajeAhorroMes! >= 0" [class.text-rose-300]="finanzasService.resumen().porcentajeAhorroMes! < 0">
+                {{ finanzasService.resumen().porcentajeAhorroMes! >= 0 ? '+' : '' }}{{ finanzasService.resumen().porcentajeAhorroMes }}% este mes
+              </span>
+            } @else {
+              <span class="text-white/40">Sin datos previos</span>
+            }
           </div>
         </div>
 
@@ -410,9 +435,22 @@
           
           <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight mb-2">Gastos por categorias</h2>
 
-          <div class="relative w-full h-[210px] flex items-center justify-center my-auto">
-            <canvas #donutCanvas class="max-h-full max-w-full"></canvas>
-          </div>
+          @if (finanzasService.resumen().totalGastos === 0) {
+            <div class="relative w-full h-[210px] flex flex-col items-center justify-center text-center p-4">
+              <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-2">
+                <svg class="w-5 h-5 text-[#95b5bc]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                </svg>
+              </div>
+              <p class="text-xs font-semibold text-white">Sin gastos registrados</p>
+              <p class="text-[11px] text-[#95b5bc] mt-0.5">Los gastos registrados aparecerán aquí</p>
+            </div>
+          } @else {
+            <div class="relative w-full h-[210px] flex items-center justify-center my-auto">
+              <canvas #donutCanvas class="max-h-full max-w-full"></canvas>
+            </div>
+          }
 
           <div class="flex flex-col gap-1.5 mt-2 pl-2">
             <div class="flex items-center gap-2.5">
@@ -699,7 +737,11 @@
               </div>
 
               <div class="text-[11px] text-[#28bed0] font-semibold mt-2 flex items-center gap-1">
-                <span>↗ +12.5% vs semestre anterior</span>
+                @if (finanzasService.resumen().porcentajeEvolucionSemestre !== null) {
+                  <span>{{ finanzasService.resumen().porcentajeEvolucionSemestre! >= 0 ? '↗ +' : '↘ ' }}{{ finanzasService.resumen().porcentajeEvolucionSemestre }}% vs semestre anterior</span>
+                } @else {
+                  <span class="text-white/40">Sin datos de semestre previo</span>
+                }
               </div>
 
             </div>
@@ -710,22 +752,28 @@
               <h3 class="text-base font-bold text-white tracking-wide">Fuentes de ingresos</h3>
 
               <div class="flex flex-col gap-3.5">
-                @for (fuente of fuentesIngresoBreakdown(); track fuente.nombre) {
-                  <div class="flex flex-col gap-1.5">
-                    <div class="flex items-center justify-between text-xs font-semibold text-white">
-                      <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-[#124b60] shrink-0"></span>
-                        <span>{{ fuente.nombre }}</span>
-                      </div>
-                      <span class="text-[#95b5bc]">{{ fuente.porcentaje }}%</span>
-                    </div>
-                    <div class="w-full h-1.5 bg-[#124b60]/80 rounded-full overflow-hidden">
-                      <div 
-                        class="h-full rounded-full bg-gradient-to-r from-[#28bed0] to-[#f2a625]" 
-                        [style.width.%]="fuente.porcentaje"
-                      ></div>
-                    </div>
+                @if (fuentesIngresoBreakdown().length === 0) {
+                  <div class="py-6 text-center text-xs text-[#95b5bc]">
+                    Aún no hay ingresos registrados
                   </div>
+                } @else {
+                  @for (fuente of fuentesIngresoBreakdown(); track fuente.nombre) {
+                    <div class="flex flex-col gap-1.5">
+                      <div class="flex items-center justify-between text-xs font-semibold text-white">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2 h-2 rounded-full bg-[#124b60] shrink-0"></span>
+                          <span>{{ fuente.nombre }}</span>
+                        </div>
+                        <span class="text-[#95b5bc]">{{ fuente.porcentaje }}%</span>
+                      </div>
+                      <div class="w-full h-1.5 bg-[#124b60]/80 rounded-full overflow-hidden">
+                        <div 
+                          class="h-full rounded-full bg-gradient-to-r from-[#28bed0] to-[#f2a625]" 
+                          [style.width.%]="fuente.porcentaje"
+                        ></div>
+                      </div>
+                    </div>
+                  }
                 }
               </div>
 
@@ -888,7 +936,9 @@
             <div class="text-2xl font-extrabold text-[#28bed0] mt-2">
               {{ formatMoney(finanzasService.resumen().totalIngresos) }}
             </div>
-            <span class="text-[11px] text-[#95b5bc] mt-1 block">100% de ingresos registrados</span>
+            <span class="text-[11px] text-[#95b5bc] mt-1 block">
+              {{ finanzasService.resumen().totalIngresos > 0 ? '100% de ingresos al día' : 'Sin ingresos registrados' }}
+            </span>
           </div>
 
           <div class="bg-[#124b60] rounded-2xl p-5 border border-white/5">
@@ -902,9 +952,9 @@
           <div class="bg-[#124b60] rounded-2xl p-5 border border-white/5">
             <span class="text-xs text-[#95b5bc] font-semibold uppercase">Tasa de Ahorro Neta</span>
             <div class="text-2xl font-extrabold text-emerald-400 mt-2">
-              {{ finanzasService.resumen().totalIngresos > 0 ? ((finanzasService.resumen().saldoTotal / finanzasService.resumen().totalIngresos) * 100).toFixed(1) : '0' }}%
+              {{ finanzasService.resumen().totalIngresos > 0 ? ((finanzasService.resumen().ahorroAcumulado / finanzasService.resumen().totalIngresos) * 100).toFixed(1) : '0' }}%
             </div>
-            <span class="text-[11px] text-[#95b5bc] mt-1 block">Margen de retención de capital</span>
+            <span class="text-[11px] text-[#95b5bc] mt-1 block">Ahorro acumulado sobre total de ingresos</span>
           </div>
         </div>
 
