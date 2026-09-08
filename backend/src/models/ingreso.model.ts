@@ -6,6 +6,7 @@ export interface IngresoEntity {
   fecha: string;
   categoria: string;
   estado: string;
+  es_ahorro: boolean;
   fecha_creacion: Date;
   fecha_actualizacion: Date;
 }
@@ -18,6 +19,7 @@ export interface Ingreso {
   fecha: string;
   categoria: string;
   estado: string;
+  esAhorro: boolean;
   fechaCreacion?: Date;
 }
 
@@ -27,6 +29,7 @@ export interface CreateIngresoDto {
   fecha: string;
   categoria?: string;
   estado?: string;
+  esAhorro?: boolean;
 }
 
 export interface UpdateIngresoDto {
@@ -35,6 +38,7 @@ export interface UpdateIngresoDto {
   fecha?: string;
   categoria?: string;
   estado?: string;
+  esAhorro?: boolean;
 }
 
 export function toIngresoDto(entity: IngresoEntity): Ingreso {
@@ -46,6 +50,8 @@ export function toIngresoDto(entity: IngresoEntity): Ingreso {
     fecha: entity.fecha ? (typeof entity.fecha === 'string' ? entity.fecha.split('T')[0] : (entity.fecha as any).toISOString().split('T')[0]) : '',
     categoria: entity.categoria,
     estado: entity.estado,
+    esAhorro: Boolean(entity.es_ahorro),
     fechaCreacion: entity.fecha_creacion,
   };
 }
+
