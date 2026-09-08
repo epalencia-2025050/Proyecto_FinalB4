@@ -6,6 +6,7 @@ export interface Ingreso {
   fecha: string;
   categoria: string;
   estado: string;
+  esAhorro?: boolean;
   fechaCreacion?: string;
 }
 
@@ -27,8 +28,10 @@ export interface DashboardResumen {
   gastosPorCobrar: number;
   totalIngresos: number;
   totalGastos: number;
-  porcentajeSaldoMes: number;
-  porcentajeAhorroMes: number;
+  porcentajeSaldoMes: number | null;
+  porcentajeAhorroMes: number | null;
+  porcentajeEvolucionSemestre?: number | null;
+  porcentajeIngresosCobrados?: number;
   estadoCobrados: string;
   estadoPorCobrar: string;
 }
@@ -65,6 +68,7 @@ export interface CreateIngresoPayload {
   fecha: string;
   categoria: string;
   estado: string;
+  esAhorro?: boolean;
 }
 
 export interface CreateGastoPayload {
@@ -74,4 +78,17 @@ export interface CreateGastoPayload {
   categoria: string;
   estado: string;
 }
+
+export interface ConfiguracionUsuario {
+  id?: number;
+  usuarioId: number;
+  nombreBanco: string;
+  numeroCuenta: string;
+  tipoCuenta: string;
+  taxId: string;
+  frecuenciaPago: string;
+  moneda: string;
+  avatarUrl: string;
+}
+
 

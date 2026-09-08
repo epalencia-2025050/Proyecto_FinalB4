@@ -31,8 +31,8 @@ export class IngresoRepository {
 
   async create(userId: number, dto: CreateIngresoDto): Promise<IngresoEntity> {
     const query = `
-      INSERT INTO ingresos (usuario_id, monto, descripcion, fecha, categoria, estado)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO ingresos (usuario_id, monto, descripcion, fecha, categoria, estado, es_ahorro)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
     const values = [
@@ -42,6 +42,7 @@ export class IngresoRepository {
       dto.fecha || new Date().toISOString().split('T')[0],
       dto.categoria || 'Otros',
       dto.estado || 'completado',
+      Boolean(dto.esAhorro),
     ];
     const { rows } = await pool.query<IngresoEntity>(query, values);
     return rows[0];
@@ -56,11 +57,12 @@ export class IngresoRepository {
     const fecha = dto.fecha !== undefined ? dto.fecha : current.fecha;
     const categoria = dto.categoria !== undefined ? dto.categoria : current.categoria;
     const estado = dto.estado !== undefined ? dto.estado : current.estado;
+    const esAhorro = dto.esAhorro !== undefined ? dto.esAhorro : current.es_ahorro;
 
     const query = `
       UPDATE ingresos
-      SET monto = $1, descripcion = $2, fecha = $3, categoria = $4, estado = $5, fecha_actualizacion = CURRENT_TIMESTAMP
-      WHERE id = $6 AND usuario_id = $7
+      SET monto = $1, descripcion = $2, fecha = $3, categoria = $4, estado = $5, es_ahorro = $6, fecha_actualizacion = CURRENT_TIMESTAMP
+      WHERE id = $7 AND usuario_id = $8
       RETURNING *
     `;
     const { rows } = await pool.query<IngresoEntity>(query, [
@@ -69,6 +71,7 @@ export class IngresoRepository {
       fecha,
       categoria,
       estado,
+      esAhorro,
       id,
       userId,
     ]);
@@ -87,6 +90,12 @@ export class IngresoRepository {
     return parseFloat(rows[0]?.total ?? '0');
   }
 
+  async getTotalAhorroByUserId(userId: number): Promise<number> {
+    const query = 'SELECT COALESCE(SUM(monto), 0) AS total FROM ingresos WHERE usuario_id = $1 AND es_ahorro = TRUE';
+    const { rows } = await pool.query<{ total: string }>(query, [userId]);
+    return parseFloat(rows[0]?.total ?? '0');
+  }
+
   async getMonthlyTotals(userId: number, months: number = 6): Promise<{ mes_num: number; ano: number; total: number }[]> {
     const query = `
       SELECT 
@@ -95,6 +104,23 @@ export class IngresoRepository {
         COALESCE(SUM(monto), 0)::float AS total
       FROM ingresos
       WHERE usuario_id = $1
+        AND fecha >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '${months - 1} months')
+      GROUP BY EXTRACT(YEAR FROM fecha), EXTRACT(MONTH FROM fecha)
+      ORDER BY ano ASC, mes_num ASC
+    `;
+    const { rows } = await pool.query<{ mes_num: number; ano: number; total: number }>(query, [userId]);
+    return rows;
+  }
+
+  async getMonthlyAhorroTotals(userId: number, months: number = 6): Promise<{ mes_num: number; ano: number; total: number }[]> {
+    const query = `
+      SELECT 
+        EXTRACT(MONTH FROM fecha)::int AS mes_num,
+        EXTRACT(YEAR FROM fecha)::int AS ano,
+        COALESCE(SUM(monto), 0)::float AS total
+      FROM ingresos
+      WHERE usuario_id = $1
+        AND es_ahorro = TRUE
         AND fecha >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '${months - 1} months')
       GROUP BY EXTRACT(YEAR FROM fecha), EXTRACT(MONTH FROM fecha)
       ORDER BY ano ASC, mes_num ASC

@@ -19,14 +19,93 @@ const MONTH_FULL_NAMES = [
 
 export class DashboardService {
   async getResumen(userId: number): Promise<DashboardResumen> {
-    const [totalIngresos, totalGastos, estadosGastos] = await Promise.all([
+    const [totalIngresos, totalGastos, ahorroAcumulado, estadosGastos, ingresosMensuales, gastosMensuales, ahorrosMensuales] = await Promise.all([
       ingresoRepository.getTotalByUserId(userId),
       gastoRepository.getTotalByUserId(userId),
+      ingresoRepository.getTotalAhorroByUserId(userId),
       gastoRepository.getTotalsByEstado(userId),
+      ingresoRepository.getMonthlyTotals(userId, 14),
+      gastoRepository.getMonthlyTotals(userId, 14),
+      ingresoRepository.getMonthlyAhorroTotals(userId, 14),
     ]);
 
     const saldoTotal = totalIngresos - totalGastos;
-    const ahorroAcumulado = Math.max(0, saldoTotal);
+
+    // Cálculo de variación mensual real (Mes Actual vs Mes Anterior)
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonth = prevDate.getMonth() + 1;
+    const prevYear = prevDate.getFullYear();
+
+    const ingActual = ingresosMensuales.find(x => x.mes_num === currentMonth && x.ano === currentYear)?.total || 0;
+    const gstActual = gastosMensuales.find(x => x.mes_num === currentMonth && x.ano === currentYear)?.total || 0;
+    const ahrActual = ahorrosMensuales.find(x => x.mes_num === currentMonth && x.ano === currentYear)?.total || 0;
+    const saldoActual = ingActual - gstActual;
+
+    const ingPrev = ingresosMensuales.find(x => x.mes_num === prevMonth && x.ano === prevYear)?.total || 0;
+    const gstPrev = gastosMensuales.find(x => x.mes_num === prevMonth && x.ano === prevYear)?.total || 0;
+    const ahrPrev = ahorrosMensuales.find(x => x.mes_num === prevMonth && x.ano === prevYear)?.total || 0;
+    const saldoPrev = ingPrev - gstPrev;
+
+    // ¿Hubo actividad en el mes anterior?
+    const hasPrevHistory = ingPrev > 0 || gstPrev > 0 || ahrPrev > 0;
+
+    let porcentajeSaldoMes: number | null = null;
+    if (hasPrevHistory) {
+      if (saldoPrev !== 0) {
+        porcentajeSaldoMes = Math.round(((saldoActual - saldoPrev) / Math.abs(saldoPrev)) * 1000) / 10;
+      } else if (saldoActual !== 0) {
+        porcentajeSaldoMes = saldoActual > 0 ? 100 : -100;
+      } else {
+        porcentajeSaldoMes = 0;
+      }
+    }
+
+    let porcentajeAhorroMes: number | null = null;
+    if (hasPrevHistory) {
+      if (ahrPrev > 0) {
+        porcentajeAhorroMes = Math.round(((ahrActual - ahrPrev) / ahrPrev) * 1000) / 10;
+      } else if (ahrActual > 0) {
+        porcentajeAhorroMes = 100;
+      } else {
+        porcentajeAhorroMes = 0;
+      }
+    }
+
+    // Evolución de ingresos: Últimos 6 meses vs 6 meses anteriores
+    let sumSemestreActual = 0;
+    let sumSemestreAnterior = 0;
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const m = d.getMonth() + 1;
+      const y = d.getFullYear();
+      sumSemestreActual += ingresosMensuales.find(x => x.mes_num === m && x.ano === y)?.total || 0;
+    }
+    for (let i = 6; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const m = d.getMonth() + 1;
+      const y = d.getFullYear();
+      sumSemestreAnterior += ingresosMensuales.find(x => x.mes_num === m && x.ano === y)?.total || 0;
+    }
+
+    let porcentajeEvolucionSemestre: number | null = null;
+    if (sumSemestreAnterior > 0) {
+      porcentajeEvolucionSemestre = Math.round(((sumSemestreActual - sumSemestreAnterior) / sumSemestreAnterior) * 1000) / 10;
+    }
+
+    // Porcentaje de ingresos cobrados
+    const porcentajeIngresosCobrados = totalIngresos > 0 ? 100 : 0;
+
+    // Estado dinámico según datos reales
+    let estadoCobrados = 'Sin movimientos';
+    if (estadosGastos.cobrados > 0 || estadosGastos.porCobrar > 0) {
+      estadoCobrados = estadosGastos.porCobrar === 0 ? 'Al día' : 'En proceso';
+    }
+
+    const estadoPorCobrar = estadosGastos.porCobrar > 0 ? 'Requiere atención' : 'Al día';
 
     return {
       saldoTotal: Math.round(saldoTotal * 100) / 100,
@@ -35,10 +114,12 @@ export class DashboardService {
       gastosPorCobrar: Math.round(estadosGastos.porCobrar * 100) / 100,
       totalIngresos: Math.round(totalIngresos * 100) / 100,
       totalGastos: Math.round(totalGastos * 100) / 100,
-      porcentajeSaldoMes: totalIngresos > 0 ? 24 : 0,
-      porcentajeAhorroMes: ahorroAcumulado > 0 ? 5.1 : 0,
-      estadoCobrados: '-Estable',
-      estadoPorCobrar: estadosGastos.porCobrar > 0 ? 'requiere atencion' : 'al dia',
+      porcentajeSaldoMes,
+      porcentajeAhorroMes,
+      porcentajeEvolucionSemestre,
+      porcentajeIngresosCobrados,
+      estadoCobrados,
+      estadoPorCobrar,
     };
   }
 
@@ -84,16 +165,16 @@ export class DashboardService {
   }
 
   async getTendencia(userId: number, totalMonths: number = 6): Promise<TendenciaMensual[]> {
-    const [ingresosMensuales, gastosMensuales] = await Promise.all([
+    const [ingresosMensuales, gastosMensuales, ahorrosMensuales] = await Promise.all([
       ingresoRepository.getMonthlyTotals(userId, 12),
       gastoRepository.getMonthlyTotals(userId, 12),
+      ingresoRepository.getMonthlyAhorroTotals(userId, 12),
     ]);
 
-    // Generar últimos meses (hasta 12 meses como en la gráfica de referencia Jan a Dec o 6 meses)
     const now = new Date();
     const result: TendenciaMensual[] = [];
 
-    // Mostrar los 12 meses o últimos meses para el gráfico
+    // Generar 12 meses cronológicos de más antiguo a más reciente
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const mNum = d.getMonth() + 1; // 1..12
@@ -101,15 +182,7 @@ export class DashboardService {
 
       const ing = ingresosMensuales.find(x => x.mes_num === mNum && x.ano === year)?.total || 0;
       const gst = gastosMensuales.find(x => x.mes_num === mNum && x.ano === year)?.total || 0;
-      const ahr = Math.max(0, ing - gst);
-
-      // Calcular valor de la barra proporcional
-      let valorGrafica = 0;
-      if (ing > 0 || gst > 0) {
-        valorGrafica = gst > 0 ? Math.min(80, Math.max(20, Math.round((gst / (ing || gst)) * 75))) : 25;
-      } else {
-        valorGrafica = 0;
-      }
+      const ahr = ahorrosMensuales.find(x => x.mes_num === mNum && x.ano === year)?.total || 0;
 
       result.push({
         mes: MONTH_NAMES[mNum - 1],
@@ -118,7 +191,7 @@ export class DashboardService {
         ingresos: Math.round(ing * 100) / 100,
         gastos: Math.round(gst * 100) / 100,
         ahorro: Math.round(ahr * 100) / 100,
-        valorGrafica,
+        valorGrafica: Math.round(ahr * 100) / 100,
       });
     }
 
