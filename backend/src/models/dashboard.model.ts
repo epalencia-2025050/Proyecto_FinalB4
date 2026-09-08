@@ -5,8 +5,10 @@ export interface DashboardResumen {
   gastosPorCobrar: number;
   totalIngresos: number;
   totalGastos: number;
-  porcentajeSaldoMes: number;
-  porcentajeAhorroMes: number;
+  porcentajeSaldoMes: number | null;
+  porcentajeAhorroMes: number | null;
+  porcentajeEvolucionSemestre: number | null;
+  porcentajeIngresosCobrados: number;
   estadoCobrados: string;
   estadoPorCobrar: string;
 }
@@ -25,6 +27,7 @@ export interface TendenciaMensual {
   ingresos: number;
   gastos: number;
   ahorro: number;
-  valorGrafica: number; // porcentaje o ratio para la gráfica de barras
+  valorGrafica: number;
 }
+
 
