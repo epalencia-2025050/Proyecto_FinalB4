@@ -64,7 +64,7 @@
 
           <!-- 4. Icono Historial de gastos -->
           <button 
-            (click)="setView('history')" 
+            type="button"
             title="Historial de gastos"
             class="w-10 sm:w-11 h-11 sm:h-12 flex items-center justify-center hover:scale-110 transition-transform"
           >
@@ -73,7 +73,7 @@
 
           <!-- 5. Icono Reportes -->
           <button 
-            (click)="setView('reports')" 
+            type="button"
             title="Reportes"
             class="w-10 sm:w-11 h-11 sm:h-12 flex items-center justify-center hover:scale-110 transition-transform"
           >
@@ -82,7 +82,7 @@
 
           <!-- 6. Icono Configuración -->
           <button 
-            (click)="setView('config')" 
+            type="button"
             title="Configuracion"
             class="w-10 sm:w-11 h-11 sm:h-12 flex items-center justify-center hover:scale-110 transition-transform"
           >
@@ -124,31 +124,25 @@
             <span class="w-4 h-full bg-[#f2a625] rounded-r-full shrink-0"></span>
           </div>
 
-          <!-- 4. Historial de gastos -->
+          <!-- 4. Historial de gastos (Sin navegación activa) -->
           <div 
-            (click)="setView('history')"
             class="h-11 sm:h-12 rounded-full flex items-center justify-between pl-4 pr-0 cursor-pointer transition-all shadow-md overflow-hidden bg-gradient-to-r from-[#1a8881] to-[#285e6d] hover:brightness-110"
-            [ngClass]="activeView() === 'history' ? 'ring-2 ring-white/50' : ''"
           >
             <span class="text-xs sm:text-sm font-semibold text-white tracking-wide">Historial</span>
             <span class="w-4 h-full bg-[#f2a625] rounded-r-full shrink-0"></span>
           </div>
 
-          <!-- 5. Reportes -->
+          <!-- 5. Reportes (Sin navegación activa) -->
           <div 
-            (click)="setView('reports')"
             class="h-11 sm:h-12 rounded-full flex items-center justify-between pl-4 pr-0 cursor-pointer transition-all shadow-md overflow-hidden bg-gradient-to-r from-[#1a8881] to-[#285e6d] hover:brightness-110"
-            [ngClass]="activeView() === 'reports' ? 'ring-2 ring-white/50' : ''"
           >
             <span class="text-xs sm:text-sm font-semibold text-white tracking-wide">Reportes</span>
             <span class="w-4 h-full bg-[#f2a625] rounded-r-full shrink-0"></span>
           </div>
 
-          <!-- 6. Configuracion -->
+          <!-- 6. Configuracion (Sin navegación activa) -->
           <div 
-            (click)="setView('config')"
             class="h-11 sm:h-12 rounded-full flex items-center justify-between pl-4 pr-0 cursor-pointer transition-all shadow-md overflow-hidden bg-gradient-to-r from-[#1a8881] to-[#285e6d] hover:brightness-110"
-            [ngClass]="activeView() === 'config' ? 'ring-2 ring-white/50' : ''"
           >
             <span class="text-xs sm:text-sm font-semibold text-white tracking-wide">Configuracion</span>
             <span class="w-4 h-full bg-[#f2a625] rounded-r-full shrink-0"></span>
