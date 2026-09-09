@@ -1,5 +1,6 @@
 import { gastoRepository } from '../repositories/gasto.repository';
 import { CreateGastoDto, Gasto, toGastoDto, UpdateGastoDto } from '../models/gasto.model';
+import { historialService } from './historial.service';
 
 export class GastoService {
   async getGastos(userId: number, search?: string): Promise<Gasto[]> {
@@ -23,7 +24,21 @@ export class GastoService {
       throw new Error('La categoría es requerida');
     }
     const created = await gastoRepository.create(userId, dto);
-    return toGastoDto(created);
+    const result = toGastoDto(created);
+
+    await historialService.registrarEvento({
+      usuarioId: userId,
+      tipo: 'GASTO',
+      accion: 'CREADO',
+      descripcion: result.descripcion,
+      categoria: result.categoria,
+      monto: result.monto,
+      fechaTransaccion: result.fecha,
+      estado: result.estado,
+      referenciaId: result.id,
+    });
+
+    return result;
   }
 
   async updateGasto(id: number, userId: number, dto: UpdateGastoDto): Promise<Gasto> {
@@ -34,14 +49,47 @@ export class GastoService {
     if (!updated) {
       throw new Error('Gasto no encontrado o no tiene permisos');
     }
-    return toGastoDto(updated);
+    const result = toGastoDto(updated);
+
+    await historialService.registrarEvento({
+      usuarioId: userId,
+      tipo: 'GASTO',
+      accion: 'EDITADO',
+      descripcion: result.descripcion,
+      categoria: result.categoria,
+      monto: result.monto,
+      fechaTransaccion: result.fecha,
+      estado: result.estado,
+      referenciaId: result.id,
+    });
+
+    return result;
   }
 
   async deleteGasto(id: number, userId: number): Promise<boolean> {
+    const existing = await gastoRepository.findByIdAndUserId(id, userId);
+    if (!existing) {
+      throw new Error('Gasto no encontrado o no tiene permisos');
+    }
+    const existingDto = toGastoDto(existing);
+
     const success = await gastoRepository.delete(id, userId);
     if (!success) {
       throw new Error('Gasto no encontrado o no tiene permisos');
     }
+
+    await historialService.registrarEvento({
+      usuarioId: userId,
+      tipo: 'GASTO',
+      accion: 'ELIMINADO',
+      descripcion: existingDto.descripcion,
+      categoria: existingDto.categoria,
+      monto: existingDto.monto,
+      fechaTransaccion: existingDto.fecha,
+      estado: existingDto.estado,
+      referenciaId: existingDto.id,
+    });
+
     return true;
   }
 }
