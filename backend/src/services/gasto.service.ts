@@ -6,7 +6,7 @@ export class GastoService {
     const rows = await gastoRepository.findByUserId(userId, search);
     return rows.map(toGastoDto);
   }
-
+//
   async getGastoById(id: number, userId: number): Promise<Gasto | null> {
     const row = await gastoRepository.findByIdAndUserId(id, userId);
     return row ? toGastoDto(row) : null;
