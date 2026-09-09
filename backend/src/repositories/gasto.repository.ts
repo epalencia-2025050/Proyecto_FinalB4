@@ -126,6 +126,6 @@ export class GastoRepository {
     return rows;
   }
 }
-
+//
 export const gastoRepository = new GastoRepository();
 
