@@ -6,7 +6,6 @@ import { validate } from '../middlewares/validate.middleware';
 
 const router = Router();
 
-// Todas las rutas requieren usuario autenticado
 router.use(authMiddleware);
 
 router.get('/', gastoController.list);
