@@ -53,10 +53,10 @@
             <img src="assets/icons/icon-ingresos.png" alt="Ingresar ingresos" class="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
           </button>
 
-          <!-- 3. Icono Agregar gasto -->
+          <!-- 3. Icono Gastos -->
           <button 
-            (click)="openAddExpenseModal()" 
-            title="Agregar gasto"
+            (click)="setView('gastos')" 
+            title="Gestionar gastos"
             class="w-10 sm:w-11 h-11 sm:h-12 flex items-center justify-center hover:scale-110 transition-transform"
           >
             <img src="assets/icons/icon-gastos.png" alt="Agregar gasto" class="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
@@ -114,10 +114,11 @@
             <span class="w-4 h-full bg-[#f2a625] rounded-r-full shrink-0"></span>
           </div>
 
-          <!-- 3. Agregar gasto -->
+          <!-- 3. Gastos -->
           <div 
-            (click)="openAddExpenseModal()"
+            (click)="setView('gastos')"
             class="h-11 sm:h-12 rounded-full flex items-center justify-between pl-4 pr-0 cursor-pointer transition-all shadow-md overflow-hidden bg-gradient-to-r from-[#1a8881] to-[#285e6d] hover:brightness-110"
+            [ngClass]="activeView() === 'gastos' ? 'ring-2 ring-white/50' : ''"
           >
             <span class="text-xs sm:text-sm font-semibold text-white tracking-wide">Gastos</span>
             <span class="w-4 h-full bg-[#f2a625] rounded-r-full shrink-0"></span>
@@ -808,6 +809,356 @@
     }
 
     <!-- ======================================================== -->
+    <!-- VISTA: GESTIÓN DE GASTOS (PÁGINA COMPLETA, ESTILO INGRESOS) -->
+    <!-- ======================================================== -->
+    @if (activeView() === 'gastos') {
+      <div class="flex flex-col gap-5 animate-fade-in">
+
+        <!-- FEEDBACK DE ÉXITO -->
+        @if (formSuccess()) {
+          <div class="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2">
+            <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <span>{{ formSuccess() }}</span>
+          </div>
+        }
+
+        <!-- TARJETAS DE RESUMEN -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+          <div class="bg-gradient-to-r from-[#1a8881] to-[#285e6d] rounded-2xl p-5 shadow-lg shadow-black/15 border border-white/5 flex flex-col justify-between min-h-[130px] hover:translate-y-[-2px] transition-transform">
+            <span class="text-xs text-[#95b5bc] font-medium tracking-wide uppercase">Total Gastos</span>
+            <div class="text-2xl xl:text-3xl font-extrabold text-white tracking-tight mt-1 truncate">
+              {{ formatMoney(finanzasService.resumen().totalGastos) }}
+            </div>
+            <span class="text-[11px] text-[#95b5bc] mt-2">Gastos históricos acumulados</span>
+          </div>
+
+          <div class="bg-gradient-to-r from-[#1a8881] to-[#285e6d] rounded-2xl p-5 shadow-lg shadow-black/15 border border-white/5 flex flex-col justify-between min-h-[130px] hover:translate-y-[-2px] transition-transform">
+            <span class="text-xs text-[#95b5bc] font-medium tracking-wide uppercase">Gastos Cobrados</span>
+            <div class="text-2xl xl:text-3xl font-extrabold text-white tracking-tight mt-1 truncate">
+              {{ formatMoney(finanzasService.resumen().gastosCobrados) }}
+            </div>
+            <span class="text-[11px] text-[#95b5bc] mt-2">{{ finanzasService.resumen().estadoCobrados }}</span>
+          </div>
+
+          <div class="bg-gradient-to-r from-[#1a8881] to-[#285e6d] rounded-2xl p-5 shadow-lg shadow-black/15 border border-white/5 flex flex-col justify-between min-h-[130px] hover:translate-y-[-2px] transition-transform">
+            <span class="text-xs text-[#95b5bc] font-medium tracking-wide uppercase">Por Cobrar</span>
+            <div class="text-2xl xl:text-3xl font-extrabold text-[#f2a625] tracking-tight mt-1 truncate">
+              {{ formatMoney(finanzasService.resumen().gastosPorCobrar) }}
+            </div>
+            <span class="text-[11px] text-[#95b5bc] mt-2">{{ finanzasService.resumen().estadoPorCobrar }}</span>
+          </div>
+
+        </div>
+
+        <!-- GRID PRINCIPAL: FORMULARIO + RESÚMENES (ALINEADO EXACTO) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+          <!-- COLUMNA IZQUIERDA: FORMULARIO DE GASTO (7 COLS) -->
+          <div class="lg:col-span-7 flex flex-col">
+
+            <div class="bg-gradient-to-r from-[#1a8881] to-[#285e6d] rounded-2xl p-6 shadow-lg shadow-black/15 border border-white/5 flex flex-col justify-between h-full gap-5">
+
+              <div class="flex items-center gap-2.5 text-white">
+                <svg class="w-5 h-5 text-white shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <h3 class="text-base font-bold tracking-wide">
+                  {{ editingItem() ? 'Editar Gasto' : 'Registrar nuevo gasto' }}
+                </h3>
+              </div>
+
+              @if (formError()) {
+                <div class="p-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-200 text-xs">{{ formError() }}</div>
+              }
+
+              <form [formGroup]="expenseForm" (ngSubmit)="saveExpense()" class="flex flex-col gap-4">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <!-- MONTO -->
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">MONTO (Q)</label>
+                    <div class="relative flex items-center">
+                      <span class="absolute left-3.5 text-sm font-semibold text-white/70">Q</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        formControlName="monto"
+                        placeholder="0.00"
+                        class="w-full h-11 rounded-xl pl-9 pr-3 text-sm font-bold bg-[#124b60]/60 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- FECHA -->
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">FECHA</label>
+                    <input
+                      type="date"
+                      formControlName="fecha"
+                      class="w-full h-11 rounded-xl px-4 text-sm bg-[#124b60]/60 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
+                    />
+                  </div>
+                </div>
+
+                <!-- DESCRIPCIÓN -->
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">DESCRIPCIÓN</label>
+                  <input
+                    type="text"
+                    formControlName="descripcion"
+                    placeholder="Ej. Alquiler, Supermercado, Combustible..."
+                    class="w-full h-11 rounded-xl px-4 text-xs font-semibold bg-[#124b60]/60 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
+                  />
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <!-- CATEGORÍA -->
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">CATEGORÍA</label>
+                    <select
+                      formControlName="categoria"
+                      class="w-full h-11 rounded-xl px-4 text-xs font-semibold bg-[#124b60]/60 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
+                    >
+                      <option value="Vivienda" class="bg-[#124b60]">Vivienda</option>
+                      <option value="Alimentación" class="bg-[#124b60]">Alimentación</option>
+                      <option value="Transporte" class="bg-[#124b60]">Transporte</option>
+                      <option value="Otros" class="bg-[#124b60]">Otros</option>
+                    </select>
+                  </div>
+
+                  <!-- ESTADO -->
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">ESTADO</label>
+                    <select
+                      formControlName="estado"
+                      class="w-full h-11 rounded-xl px-4 text-xs font-semibold bg-[#124b60]/60 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
+                    >
+                      <option value="pagado" class="bg-[#124b60]">Pagado / Cobrado</option>
+                      <option value="pendiente" class="bg-[#124b60]">Pendiente / Por Cobrar</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- BOTÓN GUARDAR (cápsula naranja con pestaña teal, idéntico a Ingresos) -->
+                <div class="flex justify-end pt-3">
+                  <div class="relative flex items-center group cursor-pointer" (click)="saveExpense()">
+                    <div class="absolute -left-1 top-0 bottom-0 w-8 bg-[#1a8881] rounded-l-full"></div>
+                    <button
+                      type="submit"
+                      [disabled]="formSubmitting()"
+                      class="relative z-10 h-11 ml-2 px-8 bg-[#f2a625] hover:bg-[#e0951b] text-[#2b2d33] font-bold text-sm rounded-full flex items-center justify-between gap-3 shadow-lg shadow-black/20 transition-all active:scale-[0.98] disabled:opacity-50 overflow-hidden"
+                    >
+                      <svg class="w-5 h-5 text-[#2b2d33] shrink-0 group-hover:translate-y-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v10m0 0l-3-3m3 3l3-3" />
+                      </svg>
+                      <span class="text-sm font-bold tracking-wide">
+                        {{ formSubmitting() ? 'Guardando...' : (editingItem() ? 'Actualizar Gasto' : 'Guardar Gasto') }}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+              </form>
+            </div>
+
+          </div>
+
+          <!-- COLUMNA DERECHA: RESUMEN POR CATEGORÍAS Y ESTADOS (5 COLS) -->
+          <div class="lg:col-span-5 flex flex-col justify-between h-full gap-5">
+
+            <!-- DESGLOSE POR CATEGORÍA -->
+            <div class="bg-gradient-to-r from-[#1a8881] to-[#285e6d] rounded-2xl p-6 shadow-lg shadow-black/15 border border-white/5 flex flex-col gap-4">
+              <h3 class="text-base font-bold text-white tracking-wide">Gastos por categoría</h3>
+              <div class="flex flex-col gap-3.5">
+                @if (finanzasService.categorias().length === 0) {
+                  <div class="py-6 text-center text-xs text-[#95b5bc]">
+                    Aún no hay gastos registrados
+                  </div>
+                } @else {
+                  @for (cat of finanzasService.categorias(); track cat.categoria) {
+                    <div class="flex flex-col gap-1.5">
+                      <div class="flex items-center justify-between text-xs font-semibold text-white">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2 h-2 rounded-full bg-[#f2a625] shrink-0"></span>
+                          <span>{{ cat.categoria }}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                          <span class="text-[#95b5bc]">{{ cat.porcentaje }}%</span>
+                          <span class="font-extrabold text-white">{{ formatMoney(cat.total) }}</span>
+                        </div>
+                      </div>
+                      <div class="w-full h-1.5 bg-[#124b60]/80 rounded-full overflow-hidden">
+                        <div
+                          class="h-full rounded-full bg-gradient-to-r from-[#f2a625] to-[#e0951b]"
+                          [style.width.%]="cat.porcentaje"
+                        ></div>
+                      </div>
+                    </div>
+                  }
+                }
+              </div>
+            </div>
+
+            <!-- TARJETA: RESUMEN DE ESTADOS (COMPACTA) -->
+            <div class="bg-gradient-to-r from-[#1a8881] to-[#285e6d] rounded-2xl p-4 sm:p-5 shadow-lg shadow-black/15 border border-white/5 flex flex-col gap-3">
+              <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-white/90 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h3 class="text-sm font-bold text-white tracking-wide">Resumen de Estados</h3>
+                </div>
+                <span class="text-[10px] font-semibold text-[#95b5bc] bg-[#124b60]/60 px-2 py-0.5 rounded-full border border-white/5">
+                  {{ gastosStats().totalCount }} registros
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <!-- CONTADOR 1: GASTOS PAGADOS -->
+                <div class="p-3 rounded-xl bg-[#124b60]/55 border border-emerald-500/20 flex flex-col justify-between gap-1.5 shadow-sm hover:border-emerald-500/40 transition-colors">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-[#95b5bc] uppercase tracking-wider">Pagados</span>
+                    <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 animate-pulse"></span>
+                      Pagado
+                    </span>
+                  </div>
+                  <div class="flex items-baseline justify-between mt-0.5">
+                    <span class="text-xl font-black text-white tracking-tight">
+                      {{ gastosStats().pagadosCount }}
+                    </span>
+                    <span class="text-[11px] font-extrabold text-emerald-300">
+                      {{ formatMoney(gastosStats().pagadosMonto) }}
+                    </span>
+                  </div>
+                  <div class="w-full h-1 bg-[#124b60]/90 rounded-full overflow-hidden mt-0.5">
+                    <div
+                      class="h-full rounded-full bg-emerald-400 transition-all duration-500"
+                      [style.width.%]="gastosStats().pagadosPorcentaje"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- CONTADOR 2: GASTOS PENDIENTES -->
+                <div class="p-3 rounded-xl bg-[#124b60]/55 border border-amber-500/20 flex flex-col justify-between gap-1.5 shadow-sm hover:border-amber-500/40 transition-colors">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-[#95b5bc] uppercase tracking-wider">Pendientes</span>
+                    <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                      Pendiente
+                    </span>
+                  </div>
+                  <div class="flex items-baseline justify-between mt-0.5">
+                    <span class="text-xl font-black text-white tracking-tight">
+                      {{ gastosStats().pendientesCount }}
+                    </span>
+                    <span class="text-[11px] font-extrabold text-[#f2a625]">
+                      {{ formatMoney(gastosStats().pendientesMonto) }}
+                    </span>
+                  </div>
+                  <div class="w-full h-1 bg-[#124b60]/90 rounded-full overflow-hidden mt-0.5">
+                    <div
+                      class="h-full rounded-full bg-gradient-to-r from-[#f2a625] to-[#e0951b] transition-all duration-500"
+                      [style.width.%]="gastosStats().pendientesPorcentaje"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- TABLA DE GASTOS RECIENTES -->
+        <div class="bg-gradient-to-r from-[#1a8881] to-[#285e6d] rounded-2xl p-6 shadow-lg shadow-black/15 border border-white/5 flex flex-col gap-4">
+
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+            <div>
+              <h3 class="text-base font-bold text-white tracking-wide">Gastos registrados</h3>
+              <p class="text-xs text-[#95b5bc] mt-0.5">Edite o elimine cualquier gasto</p>
+            </div>
+            <select
+              [value]="historyCategoryFilter()"
+              (change)="historyCategoryFilter.set($any($event.target).value)"
+              class="bg-[#124b60] border border-white/10 text-xs text-white rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#f2a625]"
+            >
+              <option value="all">Todas las categorías</option>
+              <option value="vivienda">Vivienda</option>
+              <option value="alimentación">Alimentación</option>
+              <option value="transporte">Transporte</option>
+              <option value="otros">Otros</option>
+            </select>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead>
+                <tr class="text-[#95b5bc] border-b border-white/10 uppercase tracking-wider font-semibold">
+                  <th class="pb-3 pl-3">ID</th>
+                  <th class="pb-3">Descripción</th>
+                  <th class="pb-3">Categoría</th>
+                  <th class="pb-3">Fecha</th>
+                  <th class="pb-3">Estado</th>
+                  <th class="pb-3 text-right pr-3">Monto</th>
+                  <th class="pb-3 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                @for (item of finanzasService.gastos(); track item.id) {
+                  @if (historyCategoryFilter() === 'all' || item.categoria.toLowerCase() === historyCategoryFilter()) {
+                    <tr class="hover:bg-white/5 transition-colors">
+                      <td class="py-3.5 pl-3 text-[#95b5bc]">#{{ item.id }}</td>
+                      <td class="py-3.5 font-semibold text-white">{{ item.descripcion }}</td>
+                      <td class="py-3.5 text-[#95b5bc] font-medium">{{ item.categoria }}</td>
+                      <td class="py-3.5 text-[#95b5bc]">{{ item.fecha }}</td>
+                      <td class="py-3.5">
+                        <span
+                          class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                          [ngClass]="item.estado === 'pagado' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'"
+                        >{{ item.estado }}</span>
+                      </td>
+                      <td class="py-3.5 text-right pr-3 font-extrabold text-sm text-[#f2a625]">
+                        -{{ formatMoney(item.monto) }}
+                      </td>
+                      <td class="py-3.5 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                          <button
+                            (click)="openEditModal(asGastoItem(item))"
+                            title="Editar"
+                            class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                          >
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                          </button>
+                          <button
+                            (click)="confirmDelete(asGastoItem(item))"
+                            title="Eliminar"
+                            class="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-300 transition-colors"
+                          >
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                } @empty {
+                  <tr>
+                    <td colspan="7" class="py-12 text-center text-[#95b5bc]">
+                      No hay gastos registrados aún.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+    }
+
+    <!-- ======================================================== -->
     <!-- VISTA 3: HISTORIAL COMPLETO DE GASTOS E INGRESOS -->
     <!-- ======================================================== -->
     @if (activeView() === 'history') {
@@ -1208,25 +1559,28 @@
 
   <!-- ======================================================== -->
   <!-- ======================================================== -->
-  <!-- MODAL: AGREGAR / EDITAR GASTO -->
+  <!-- MODAL: AGREGAR / EDITAR GASTO — estilos alineados a Ingresos -->
   <!-- ======================================================== -->
   @if (showExpenseModal()) {
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
       <div class="w-full max-w-[450px] bg-[#124b60] border border-white/20 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
-        
-        <!-- Header: Título y Botón Cerrar (X) -->
+
+        <!-- Header: ícono + Título + Cerrar -->
         <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
-          <h3 class="text-xl font-bold text-white tracking-wide">
-            {{ editingItem() ? 'Editar Gasto' : 'Agregar Gasto' }}
-          </h3>
-          <button 
+          <div class="flex items-center gap-2.5 text-white">
+            <svg class="w-5 h-5 text-white shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            <h3 class="text-base font-bold tracking-wide">
+              {{ editingItem() ? 'Editar Gasto' : 'Agregar Gasto' }}
+            </h3>
+          </div>
+          <button
             type="button"
-            (click)="closeModals()" 
+            (click)="closeModals()"
             class="text-white/60 hover:text-white text-xl p-1 rounded-lg transition-colors leading-none"
             aria-label="Cerrar"
-          >
-            ✕
-          </button>
+          >✕</button>
         </div>
 
         @if (formError()) {
@@ -1236,96 +1590,91 @@
         }
 
         <form [formGroup]="expenseForm" (ngSubmit)="saveExpense()" class="flex flex-col gap-4">
-          
-          <!-- Monto (Q) -->
+
+          <!-- MONTO -->
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-semibold text-[#95b5bc]">Monto (Q)</label>
-            <input 
-              type="number" 
-              step="0.01" 
-              formControlName="monto" 
-              placeholder="Ej. 850.00"
-              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881]/40 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 transition-all"
-            />
+            <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">MONTO (Q)</label>
+            <div class="relative flex items-center">
+              <span class="absolute left-3.5 text-sm font-semibold text-white/70">Q</span>
+              <input
+                type="number"
+                step="0.01"
+                formControlName="monto"
+                placeholder="Ej. 850.00"
+                class="w-full h-11 rounded-xl pl-9 pr-3 text-sm font-bold bg-[#124b60]/60 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
+              />
+            </div>
           </div>
 
-          <!-- Descripción -->
+          <!-- DESCRIPCIÓN -->
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-semibold text-[#95b5bc]">Descripción</label>
-            <input 
-              type="text" 
-              formControlName="descripcion" 
+            <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">DESCRIPCIÓN</label>
+            <input
+              type="text"
+              formControlName="descripcion"
               placeholder="Ej. Alquiler / Supermercado / Combustible"
-              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881]/40 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 transition-all"
+              class="w-full h-11 rounded-xl px-4 text-xs font-semibold bg-[#124b60]/60 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
             />
           </div>
 
-          <!-- Categoría de Gasto -->
+          <!-- CATEGORÍA -->
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-semibold text-[#95b5bc]">Categoría de Gasto</label>
-            <div class="relative">
-              <select 
-                formControlName="categoria" 
-                class="w-full h-11 rounded-xl px-4 pr-10 text-sm bg-[#1a8881] text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 appearance-none cursor-pointer"
-              >
-                <option value="Vivienda" class="bg-[#124b60] text-white">Vivienda</option>
-                <option value="Alimentación" class="bg-[#124b60] text-white">Alimentación</option>
-                <option value="Transporte" class="bg-[#124b60] text-white">Transporte</option>
-                <option value="Otros" class="bg-[#124b60] text-white">Otros</option>
-              </select>
-              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-white/70">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </div>
-            </div>
+            <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">CATEGORÍA</label>
+            <select
+              formControlName="categoria"
+              class="w-full h-11 rounded-xl px-4 text-xs font-semibold bg-[#124b60]/60 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
+            >
+              <option value="Vivienda" class="bg-[#124b60] text-white">Vivienda</option>
+              <option value="Alimentación" class="bg-[#124b60] text-white">Alimentación</option>
+              <option value="Transporte" class="bg-[#124b60] text-white">Transporte</option>
+              <option value="Otros" class="bg-[#124b60] text-white">Otros</option>
+            </select>
           </div>
 
-          <!-- Fecha -->
+          <!-- FECHA -->
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-semibold text-[#95b5bc]">Fecha</label>
-            <input 
-              type="date" 
-              formControlName="fecha" 
-              class="w-full h-11 rounded-xl px-4 text-sm bg-[#1a8881] text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 transition-all cursor-pointer"
+            <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">FECHA</label>
+            <input
+              type="date"
+              formControlName="fecha"
+              class="w-full h-11 rounded-xl px-4 text-sm bg-[#124b60]/60 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
             />
           </div>
 
-          <!-- Estado -->
+          <!-- ESTADO -->
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-semibold text-[#95b5bc]">Estado</label>
-            <div class="relative">
-              <select 
-                formControlName="estado" 
-                class="w-full h-11 rounded-xl px-4 pr-10 text-sm bg-[#1a8881] text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625] border border-white/10 appearance-none cursor-pointer"
-              >
-                <option value="pagado" class="bg-[#124b60] text-white">Pagado / Cobrado</option>
-                <option value="pendiente" class="bg-[#124b60] text-white">Pendiente / Por Cobrar</option>
-              </select>
-              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-white/70">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </div>
-            </div>
+            <label class="text-[11px] font-bold text-[#95b5bc] uppercase tracking-wider">ESTADO</label>
+            <select
+              formControlName="estado"
+              class="w-full h-11 rounded-xl px-4 text-xs font-semibold bg-[#124b60]/60 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#f2a625]"
+            >
+              <option value="pagado" class="bg-[#124b60] text-white">Pagado / Cobrado</option>
+              <option value="pendiente" class="bg-[#124b60] text-white">Pendiente / Por Cobrar</option>
+            </select>
           </div>
 
-          <!-- Botones de Acción -->
+          <!-- BOTONES: cápsula naranja con pestaña verde (idéntico a Guardar de Ingresos) -->
           <div class="flex items-center justify-end gap-3 pt-3">
-            <button 
-              type="button" 
-              (click)="closeModals()" 
+            <button
+              type="button"
+              (click)="closeModals()"
               class="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-all active:scale-95"
             >
               Cancelar
             </button>
-            <button 
-              type="submit" 
-              [disabled]="formSubmitting()"
-              class="px-6 py-2.5 rounded-xl bg-[#f2a625] hover:bg-[#e0951b] text-[#2b2d33] text-xs font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50"
-            >
-              {{ formSubmitting() ? 'Guardando...' : 'Guardar Gasto' }}
-            </button>
+            <div class="relative flex items-center group cursor-pointer">
+              <div class="absolute -left-1 top-0 bottom-0 w-7 bg-[#1a8881] rounded-l-full"></div>
+              <button
+                type="submit"
+                [disabled]="formSubmitting()"
+                class="relative z-10 h-10 ml-1.5 px-6 bg-[#f2a625] hover:bg-[#e0951b] text-[#2b2d33] font-bold text-xs rounded-full flex items-center justify-between gap-2 shadow-lg shadow-black/20 transition-all active:scale-[0.98] disabled:opacity-50 overflow-hidden"
+              >
+                <svg class="w-4 h-4 text-[#2b2d33] shrink-0 group-hover:translate-y-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v10m0 0l-3-3m3 3l3-3" />
+                </svg>
+                <span class="text-xs font-bold tracking-wide">{{ formSubmitting() ? 'Guardando...' : 'Guardar Gasto' }}</span>
+              </button>
+            </div>
           </div>
 
         </form>
