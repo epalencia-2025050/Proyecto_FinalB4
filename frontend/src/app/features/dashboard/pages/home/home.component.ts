@@ -65,7 +65,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private evolutionChart: Chart | null = null;
 
   // Modales y vistas activas
-  readonly activeView = signal<'dashboard' | 'ingresos' | 'history' | 'reports' | 'config'>('dashboard');
+  readonly activeView = signal<'dashboard' | 'ingresos' | 'gastos' | 'history' | 'reports' | 'config'>('dashboard');
   readonly showIncomeModal = signal(false);
   readonly showExpenseModal = signal(false);
   readonly showDeleteConfirm = signal<{ type: 'ingreso' | 'gasto'; id: number; title: string } | null>(null);
@@ -151,6 +151,30 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   // Saldo y Ahorro unificados: Consumen directamente la única fuente de verdad (backend)
   readonly displaySaldoTotal = computed(() => this.finanzasService.resumen().saldoTotal);
   readonly displayAhorroAcumulado = computed(() => this.finanzasService.resumen().ahorroAcumulado);
+
+  // Métricas reactivas y dinámicas de estado para el módulo de Gastos
+  readonly gastosStats = computed(() => {
+    const gastos = this.finanzasService.gastos();
+    const pagados = gastos.filter(
+      (g) => g.estado?.toLowerCase() === 'pagado' || g.estado?.toLowerCase() === 'completado'
+    );
+    const pendientes = gastos.filter(
+      (g) => g.estado?.toLowerCase() === 'pendiente' || g.estado?.toLowerCase() === 'por cobrar'
+    );
+
+    const totalPagadosMonto = pagados.reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0);
+    const totalPendientesMonto = pendientes.reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0);
+
+    return {
+      pagadosCount: pagados.length,
+      pendientesCount: pendientes.length,
+      totalCount: gastos.length,
+      pagadosMonto: totalPagadosMonto,
+      pendientesMonto: totalPendientesMonto,
+      pagadosPorcentaje: gastos.length > 0 ? Math.round((pagados.length / gastos.length) * 100) : 0,
+      pendientesPorcentaje: gastos.length > 0 ? Math.round((pendientes.length / gastos.length) * 100) : 0,
+    };
+  });
 
   readonly fuentesIngresoBreakdown = computed(() => {
     const incomes = this.finanzasService.ingresos();
@@ -754,7 +778,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // --- Manejo de Navegación & Vistas ---
-  setView(view: 'dashboard' | 'ingresos' | 'history' | 'reports' | 'config'): void {
+  setView(view: 'dashboard' | 'ingresos' | 'gastos' | 'history' | 'reports' | 'config'): void {
     this.activeView.set(view);
     this.mobileSidebarOpen.set(false);
 
@@ -767,6 +791,18 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       setTimeout(() => {
         this.initEvolutionChart();
       }, 60);
+    } else if (view === 'gastos') {
+      // Resetear formulario al entrar a la vista de Gastos
+      this.formError.set(null);
+      this.formSuccess.set(null);
+      this.editingItem.set(null);
+      this.expenseForm.reset({
+        monto: null,
+        descripcion: '',
+        fecha: this.getLocalDateString(),
+        categoria: 'Alimentación',
+        estado: 'pagado',
+      });
     }
   }
 
@@ -833,7 +869,10 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         categoria: gastoItem.categoria,
         estado: gastoItem.estado,
       });
-      this.showExpenseModal.set(true);
+      // Si estamos en la vista de gastos, editar inline; si no, abrir modal
+      if (this.activeView() !== 'gastos') {
+        this.showExpenseModal.set(true);
+      }
     }
   }
 
@@ -905,14 +944,39 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.formSubmitting.set(true);
     this.formError.set(null);
 
-    const values = this.expenseForm.value;
+    const rawValues = this.expenseForm.value;
+    const values = {
+      monto: Number(rawValues.monto),
+      descripcion: String(rawValues.descripcion).trim(),
+      fecha: rawValues.fecha,
+      categoria: rawValues.categoria,
+      estado: rawValues.estado,
+    };
     const isEdit = this.editingItem();
+    const isInlineView = this.activeView() === 'gastos';
+
+    const resetExpenseForm = () => {
+      this.expenseForm.reset({
+        monto: null,
+        descripcion: '',
+        fecha: this.getLocalDateString(),
+        categoria: 'Alimentación',
+        estado: 'pagado',
+      });
+    };
 
     if (isEdit && isEdit.type === 'gasto') {
       this.finanzasService.updateGasto(isEdit.data.id, values).subscribe({
         next: () => {
           this.formSubmitting.set(false);
-          this.closeModals();
+          resetExpenseForm();
+          if (isInlineView) {
+            this.formSuccess.set('¡Gasto actualizado correctamente!');
+            this.editingItem.set(null);
+            setTimeout(() => this.formSuccess.set(null), 3500);
+          } else {
+            this.closeModals();
+          }
         },
         error: (err) => {
           this.formSubmitting.set(false);
@@ -923,7 +987,13 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.finanzasService.createGasto(values).subscribe({
         next: () => {
           this.formSubmitting.set(false);
-          this.closeModals();
+          resetExpenseForm();
+          if (isInlineView) {
+            this.formSuccess.set('¡Gasto registrado exitosamente!');
+            setTimeout(() => this.formSuccess.set(null), 3500);
+          } else {
+            this.closeModals();
+          }
         },
         error: (err) => {
           this.formSubmitting.set(false);
@@ -1024,6 +1094,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onLogout(): void {
     this.authService.logout();
+  }
+
+  // Helper para el template: convierte un Gasto al tipo combinado con transactionType
+  asGastoItem(item: Gasto): Gasto & { transactionType: 'gasto' } {
+    return { ...item, transactionType: 'gasto' };
   }
 
   // Helper para formato de moneda

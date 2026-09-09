@@ -5,7 +5,7 @@ export interface GastoEntity {
   descripcion: string;
   fecha: string;
   categoria: string;
-  estado: string; // 'pagado' (cobrado) / 'pendiente' (por cobrar)
+  estado: string; 
   fecha_creacion: Date;
   fecha_actualizacion: Date;
 }

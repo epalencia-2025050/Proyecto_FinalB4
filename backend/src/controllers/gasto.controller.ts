@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { gastoService } from '../services/gasto.service';
 
+//
+
 export class GastoController {
   async list(req: Request, res: Response): Promise<void> {
     try {

@@ -63,3 +63,16 @@ body {
   outline: none;
   box-shadow: 0 0 10px rgba(23, 163, 152, 0.4);
 }
+
+/* Indicadores y métricas de estado para módulos de Gastos e Ingresos */
+.badge-status-pagado {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-status-pendiente {
+  background-color: rgba(245, 166, 35, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 166, 35, 0.3);
+}
