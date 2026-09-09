@@ -91,4 +91,19 @@ export interface ConfiguracionUsuario {
   avatarUrl: string;
 }
 
+export interface HistorialItem {
+  id: number;
+  usuarioId: number;
+  tipo: 'INGRESO' | 'GASTO';
+  accion: 'CREADO' | 'EDITADO' | 'ELIMINADO';
+  descripcion: string;
+  categoria: string;
+  monto: number;
+  fechaTransaccion: string;
+  estado: string;
+  fechaRegistro: string;
+  referenciaId: number | null;
+}
+
+
 
