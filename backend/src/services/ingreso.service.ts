@@ -5,6 +5,7 @@
  * ============================================================================
  */
 import { ingresoRepository } from '../repositories/ingreso.repository';
+import { gastoRepository } from '../repositories/gasto.repository';
 import { CreateIngresoDto, Ingreso, toIngresoDto, UpdateIngresoDto } from '../models/ingreso.model';
 import { historialService } from './historial.service';
 
@@ -24,7 +25,7 @@ export class IngresoService {
       throw new Error('La descripción es requerida');
     }
     if (dto.monto === undefined || dto.monto <= 0) {
-      throw new Error('El monto debe ser mayor a 0');
+      throw new Error('El monto debe ser mayor a Q0.00');
     }
     const created = await ingresoRepository.create(userId, dto);
     const result = toIngresoDto(created);
@@ -46,8 +47,25 @@ export class IngresoService {
 
   async updateIngreso(id: number, userId: number, dto: UpdateIngresoDto): Promise<Ingreso> {
     if (dto.monto !== undefined && dto.monto <= 0) {
-      throw new Error('El monto debe ser mayor a 0');
+      throw new Error('El monto debe ser mayor a Q0.00');
     }
+
+    const existing = await ingresoRepository.findByIdAndUserId(id, userId);
+    if (!existing) {
+      throw new Error('Ingreso no encontrado o no tiene permisos');
+    }
+
+    // Si se reduce el monto del ingreso, verificar que el saldo disponible resultante no sea negativo
+    if (dto.monto !== undefined) {
+      const totalIngresos = await ingresoRepository.getTotalByUserId(userId);
+      const totalGastos = await gastoRepository.getTotalByUserId(userId);
+      const nuevoTotalIngresos = totalIngresos - Number(existing.monto) + dto.monto;
+      if (nuevoTotalIngresos < totalGastos) {
+        const saldoDisponible = totalIngresos - totalGastos;
+        throw new Error(`Operación bloqueada. Reducir este ingreso a Q${dto.monto.toFixed(2)} dejaría un saldo negativo porque tus gastos actuales suman Q${totalGastos.toFixed(2)}.`);
+      }
+    }
+
     const updated = await ingresoRepository.update(id, userId, dto);
     if (!updated) {
       throw new Error('Ingreso no encontrado o no tiene permisos');
@@ -74,6 +92,14 @@ export class IngresoService {
     if (!existing) {
       throw new Error('Ingreso no encontrado o no tiene permisos');
     }
+
+    // Verificar que al eliminar el ingreso el saldo no quede en negativo con los gastos existentes
+    const totalIngresos = await ingresoRepository.getTotalByUserId(userId);
+    const totalGastos = await gastoRepository.getTotalByUserId(userId);
+    if (totalIngresos - Number(existing.monto) < totalGastos) {
+      throw new Error(`Operación bloqueada. Eliminar este ingreso de Q${Number(existing.monto).toFixed(2)} dejaría tu saldo en negativo respecto a tus gastos registrados (Q${totalGastos.toFixed(2)}).`);
+    }
+
     const existingDto = toIngresoDto(existing);
 
     const success = await ingresoRepository.delete(id, userId);
