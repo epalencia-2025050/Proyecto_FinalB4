@@ -3,6 +3,7 @@ import { userRepository } from '../repositories/user.repository';
 import { toPublicUser, UserPublic } from '../models/user.model';
 import { signAccessToken } from '../utils/jwt.util';
 import { ConflictError, UnauthorizedError } from '../utils/errors';
+import { googleAuthService } from './google-auth.service';
 
 const SALT_ROUNDS = 10;
 
@@ -29,7 +30,7 @@ export class AuthService {
       throw new UnauthorizedError('Email o contrasena incorrectos');
     }
 
-    const token = signAccessToken({ sub: user.id, email: user.email, rol: user.rol });
+    const token = signAccessToken({ sub: user.id, email: user.email, rol: user.rol, lastActivity: Date.now() });
 
     return { token, user: toPublicUser(user) };
   }
@@ -51,6 +52,65 @@ export class AuthService {
     const created = await userRepository.create(nombre.trim(), normalizedEmail, passwordHash, 'user');
 
     return toPublicUser(created);
+  }
+
+  /**
+   * Autenticación con Google Identity Services:
+   * 1. Verifica el token con GoogleAuthService.
+   * 2. Si el usuario ya existe por google_id, inicia sesión.
+   * 3. Si no existe por google_id pero el email ya está registrado localmente:
+   *    NO vincula automáticamente, NO sobreescribe contraseña ni password_hash. Retorna conflicto controlado.
+   * 4. Si no existe, crea el usuario con rol 'user', activo=true y emite el JWT idéntico al tradicional.
+   */
+  async loginWithGoogle(credential: string): Promise<LoginResult> {
+    const googleUser = await googleAuthService.verifyIdToken(credential);
+
+    // 1. Buscar si ya existe asociado a este google_id
+    let user = await userRepository.findByGoogleId(googleUser.googleId);
+
+    if (user) {
+      if (!user.activo) {
+        throw new UnauthorizedError('Usuario inactivo o suspendido');
+      }
+      const token = signAccessToken({
+        sub: user.id,
+        email: user.email,
+        rol: user.rol,
+        lastActivity: Date.now(),
+      });
+      return { token, user: toPublicUser(user) };
+    }
+
+    // 2. Si no existe por google_id, verificar si ya existe una cuenta local con ese email
+    const localUser = await userRepository.findByEmail(googleUser.email);
+    if (localUser) {
+      // Regla obligatoria: NO sobrescribir password_hash, NO vincular silenciosamente.
+      throw new ConflictError(
+        'Ya existe una cuenta registrada con este correo electrónico. Por favor, inicia sesión con tu contraseña para vincular tu cuenta.',
+      );
+    }
+
+    // 3. Usuario nuevo: crearlo con rol 'user', activo por defecto y un hash aleatorio no utilizable
+    const randomPassword = `google_${googleUser.googleId}_${Date.now()}`;
+    const passwordHash = await bcrypt.hash(randomPassword, SALT_ROUNDS);
+    const nombre = googleUser.name || googleUser.email.split('@')[0];
+
+    const newUser = await userRepository.createWithGoogle(
+      nombre.trim(),
+      googleUser.email,
+      googleUser.googleId,
+      passwordHash,
+      'user',
+    );
+
+    const token = signAccessToken({
+      sub: newUser.id,
+      email: newUser.email,
+      rol: newUser.rol,
+      lastActivity: Date.now(),
+    });
+
+    return { token, user: toPublicUser(newUser) };
   }
 
   async getProfile(userId: number): Promise<UserPublic> {
