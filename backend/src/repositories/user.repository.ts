@@ -8,7 +8,7 @@ import { UserEntity, Role } from '../models/user.model';
 export class UserRepository {
   async findByEmail(email: string): Promise<UserEntity | null> {
     const result = await pool.query<UserEntity>(
-      `SELECT id, nombre, email, password_hash, rol, activo, fecha_creacion, fecha_actualizacion
+      `SELECT id, nombre, email, password_hash, rol, activo, google_id, fecha_creacion, fecha_actualizacion
        FROM usuarios
        WHERE email = $1
        LIMIT 1`,
@@ -19,7 +19,7 @@ export class UserRepository {
 
   async findById(id: number): Promise<UserEntity | null> {
     const result = await pool.query<UserEntity>(
-      `SELECT id, nombre, email, password_hash, rol, activo, fecha_creacion, fecha_actualizacion
+      `SELECT id, nombre, email, password_hash, rol, activo, google_id, fecha_creacion, fecha_actualizacion
        FROM usuarios
        WHERE id = $1
        LIMIT 1`,
@@ -28,9 +28,20 @@ export class UserRepository {
     return result.rows[0] ?? null;
   }
 
+  async findByGoogleId(googleId: string): Promise<UserEntity | null> {
+    const result = await pool.query<UserEntity>(
+      `SELECT id, nombre, email, password_hash, rol, activo, google_id, fecha_creacion, fecha_actualizacion
+       FROM usuarios
+       WHERE google_id = $1
+       LIMIT 1`,
+      [googleId],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async findAll(): Promise<UserEntity[]> {
     const result = await pool.query<UserEntity>(
-      `SELECT id, nombre, email, password_hash, rol, activo, fecha_creacion, fecha_actualizacion
+      `SELECT id, nombre, email, password_hash, rol, activo, google_id, fecha_creacion, fecha_actualizacion
        FROM usuarios
        ORDER BY fecha_creacion DESC`,
     );
@@ -52,8 +63,24 @@ export class UserRepository {
     const result = await pool.query<UserEntity>(
       `INSERT INTO usuarios (nombre, email, password_hash, rol)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, nombre, email, password_hash, rol, activo, fecha_creacion, fecha_actualizacion`,
+       RETURNING id, nombre, email, password_hash, rol, activo, google_id, fecha_creacion, fecha_actualizacion`,
       [nombre, email, passwordHash, rol],
+    );
+    return result.rows[0];
+  }
+
+  async createWithGoogle(
+    nombre: string,
+    email: string,
+    googleId: string,
+    passwordHash: string,
+    rol: Role = 'user',
+  ): Promise<UserEntity> {
+    const result = await pool.query<UserEntity>(
+      `INSERT INTO usuarios (nombre, email, password_hash, rol, google_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, nombre, email, password_hash, rol, activo, google_id, fecha_creacion, fecha_actualizacion`,
+      [nombre, email, passwordHash, rol, googleId],
     );
     return result.rows[0];
   }
