@@ -10,6 +10,7 @@ import {
   CreateIngresoPayload,
   DashboardResumen,
   Gasto,
+  HistorialItem,
   Ingreso,
   TendenciaMensual,
 } from '../models/finanzas.model';
@@ -41,6 +42,7 @@ export class FinanzasService {
   readonly tendencia = signal<TendenciaMensual[]>([]);
   readonly ingresos = signal<Ingreso[]>([]);
   readonly gastos = signal<Gasto[]>([]);
+  readonly historial = signal<HistorialItem[]>([]);
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
@@ -120,6 +122,7 @@ export class FinanzasService {
     this.loadIngresos();
     this.loadGastos();
     this.loadConfiguracion();
+    this.loadHistorial();
   }
 
   loadConfiguracion(): void {
@@ -234,6 +237,36 @@ export class FinanzasService {
     });
   }
 
+  loadHistorial(params?: { search?: string; tipo?: string; categoria?: string; estado?: string; fecha?: string }): void {
+    this.startRequest();
+    let httpParams = new HttpParams();
+    if (params?.search && params.search.trim()) {
+      httpParams = httpParams.set('search', params.search.trim());
+    }
+    if (params?.tipo && params.tipo !== 'all') {
+      httpParams = httpParams.set('tipo', params.tipo.toUpperCase());
+    }
+    if (params?.categoria && params.categoria !== 'all') {
+      httpParams = httpParams.set('categoria', params.categoria);
+    }
+    if (params?.estado && params.estado !== 'all') {
+      httpParams = httpParams.set('estado', params.estado);
+    }
+    if (params?.fecha) {
+      httpParams = httpParams.set('fecha', params.fecha);
+    }
+    this.http.get<{ data: HistorialItem[] }>(`${this.apiUrl}/historial`, { params: httpParams }).subscribe({
+      next: (res) => {
+        this.historial.set(res.data);
+        this.finishRequest();
+      },
+      error: (err) => {
+        this.handleError(err, 'Error al cargar historial');
+        this.finishRequest();
+      },
+    });
+  }
+
   // =========================================================================
   // MÓDULO: SERVICIOS DE GESTIÓN DE INGRESOS (GITHUB COMMIT)
   // Comunicación HTTP con la API de PostgreSQL para Ingresos y Notificaciones
@@ -322,6 +355,7 @@ export class FinanzasService {
     this.loadTendencia();
     this.loadIngresos();
     this.loadGastos();
+    this.loadHistorial();
   }
 
   private handleError(err: any, defaultMsg: string): void {

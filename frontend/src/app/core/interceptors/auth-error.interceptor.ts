@@ -16,9 +16,10 @@ export const authErrorInterceptor: HttpInterceptorFn = (req, next) => {
         if (!esPeticionDeLogin) {
           // 1. Verificar si existía una sesión/token antes del error
           const teniaSesionActiva = !!authService.getToken();
+          const backendMessage = error?.error?.message;
 
           // 2. Limpiar la sesión y redirigir mostrando mensaje si expiró
-          authService.logout(teniaSesionActiva);
+          authService.logout(teniaSesionActiva, backendMessage);
         }
       }
       return throwError(() => error);

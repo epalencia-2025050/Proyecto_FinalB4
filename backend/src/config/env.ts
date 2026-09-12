@@ -17,6 +17,11 @@ export const env = {
   jwt: {
     secret: required('JWT_SECRET'),
     expiresIn: process.env.JWT_EXPIRES_IN ?? '1h',
+    inactivityTimeoutMinutes: parseInt(process.env.INACTIVITY_TIMEOUT_MINUTES ?? '1', 10),
+  },
+
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID ?? '',
   },
 
   db: {

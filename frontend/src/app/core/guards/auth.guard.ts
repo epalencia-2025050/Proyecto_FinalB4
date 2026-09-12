@@ -12,6 +12,8 @@ export const authGuard: CanActivateFn = () => {
       authService.logout(true);
       return false;
     }
+    // La navegación cuenta como actividad del usuario
+    authService.recordActivity();
     return true;
   }
 

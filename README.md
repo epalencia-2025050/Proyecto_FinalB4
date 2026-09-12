@@ -62,6 +62,29 @@ Se realizara la parte de un dashboar inicial que tendra como funcion poder alver
 # Segunda Parte: DashBoard de ingresos
 Se realizara la parte de ingresar los ingresos de la persona es un tipo formulario que la persona debe de llenar con sus datos bancarios como: su banco, numero de cuenta, tipo de cuenta etc. al ingresar esos datos y la cantidad a ingresar se reiniciara para poder volver a ingresar nuevos ingresos, aparte tambien tendra una grafica mes a mes para ver el flujo de los ingresos.
 
+# Tercera parte: DashBoard de gastos
+El módulo de Gastos permite registrar y administrar los gastos del usuario. Los datos introducidos en el formulario pasan por validaciones y posteriormente se envían al backend para almacenarse en la base de datos. A partir de esos datos, el sistema calcula el total de gastos, los gastos pagados y pendientes, además de generar un resumen por categorías y estados. Finalmente, los gastos registrados se muestran en una tabla donde pueden filtrarse, editarse o eliminarse.
+
+# Cuarta parte: DashBoard de configuracion 
+La sección de Configuración permite al usuario administrar las preferencias y datos relacionados con su cuenta. Desde ahí se pueden modificar las opciones que el sistema tenga disponibles, manteniendo la información del usuario y las configuraciones separadas de los módulos principales como Ingresos y Gastos.
+
+# Quinta parte: DashBoard de historial
+El módulo de Historial permite consultar los movimientos financieros registrados anteriormente. Su función principal es mostrar de manera organizada los ingresos y gastos que ya fueron almacenados, para que el usuario pueda revisar qué movimientos realizó y cuándo los realizó.
+
+# Sexta parte: DashBoard de reportes
+El módulo de Reportes permite analizar la información financiera registrada en el sistema. Utiliza los datos de ingresos y gastos para generar resúmenes y estadísticas que permiten identificar cuánto dinero se ha recibido, cuánto se ha gastado y cómo se distribuyen los movimientos según diferentes criterios, como categorías o períodos.
+
+# Funcion de inactividad del token
+Mi sistema utiliza una expiración por inactividad. El token JWT no depende únicamente de una hora fija de expiración, sino que el sistema registra la última actividad del usuario mediante lastActivity. Se consideran actividades acciones como mover el mouse, hacer clic, escribir, hacer scroll, interactuar con la página o cambiar de módulo. Cada vez que el usuario tiene actividad, se actualiza el tiempo de actividad y, cuando corresponde, se renueva el JWT mediante el endpoint de refresh.
+
+# Funcion de auntenticacion con API de google
+Para el inicio de sesión utilizo Google Identity Services. Google se encarga de autenticar la identidad del usuario y devuelve un ID Token o credential. Ese token se envía al backend de mi aplicación, donde se verifica que haya sido emitido por Google y que corresponda al GOOGLE_CLIENT_ID de mi aplicación.
+
+Una vez verificado el token, el backend obtiene los datos confiables del usuario, como su identificador de Google, correo y nombre. Con esos datos busca o crea el usuario en PostgreSQL. Después mi propio backend genera el JWT de la aplicación y se lo devuelve al frontend
+
+# Validaciones de la aplicacion
+Las validaciones controlan que los datos ingresados sean correctos antes de almacenarlos. En el frontend valido los campos para mostrar errores inmediatamente al usuario, mientras que en el backend vuelvo a validar los datos antes de procesarlos. Por ejemplo, los montos deben ser mayores que cero y tener como máximo dos decimales, las descripciones son obligatorias, las fechas deben ser válidas y las categorías y estados deben pertenecer a los valores permitidos. También controlo que un gasto no supere el saldo disponible. De esta manera tengo validaciones tanto para la experiencia del usuario como para la seguridad e integridad de los datos.
+
 # Puntos clave de mi aplicacion
 - control del dinero en tiempo real.
 - visibilidad y habitos en que se gasta.

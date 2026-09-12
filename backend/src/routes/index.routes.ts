@@ -4,6 +4,7 @@ import ingresoRoutes from './ingreso.routes';
 import gastoRoutes from './gasto.routes';
 import dashboardRoutes from './dashboard.routes';
 import configuracionRoutes from './configuracion.routes';
+import historialRoutes from './historial.routes';
 
 const router = Router();
 
@@ -12,6 +13,7 @@ router.use('/ingresos', ingresoRoutes);
 router.use('/gastos', gastoRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/configuracion', configuracionRoutes);
+router.use('/historial', historialRoutes);
 
 router.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });

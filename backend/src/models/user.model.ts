@@ -15,6 +15,7 @@ export interface UserEntity {
   password_hash: string;
   rol: Role;
   activo: boolean;
+  google_id?: string | null;
   fecha_creacion: Date;
   fecha_actualizacion: Date;
 }

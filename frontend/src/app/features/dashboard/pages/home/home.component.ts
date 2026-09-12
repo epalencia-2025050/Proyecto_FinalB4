@@ -10,7 +10,7 @@ import {
   effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Chart, registerables } from 'chart.js';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -101,10 +101,12 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   formSubmitting = signal(false);
   formError = signal<string | null>(null);
+  formWarning = signal<string | null>(null);
   formSuccess = signal<string | null>(null);
 
   // Feedback para pantalla de ingresos
   incomeConfigSuccess = signal<string | null>(null);
+  incomeConfigError = signal<string | null>(null);
   incomeConfigSubmitting = signal(false);
 
   // Filtros de historial
@@ -330,21 +332,39 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private initForms(): void {
     const today = this.getLocalDateString();
 
+    const notFutureDateValidator = (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null;
+      const selected = new Date(control.value);
+      const now = new Date();
+      now.setHours(23, 59, 59, 999);
+      return selected > now ? { futureDate: true } : null;
+    };
+
+    const maxTwoDecimalsValidator = (control: AbstractControl): ValidationErrors | null => {
+      if (control.value === null || control.value === undefined || control.value === '') return null;
+      return /^\d+(\.\d{1,2})?$/.test(String(control.value)) ? null : { maxDecimals: true };
+    };
+
+    const noWhitespaceOnlyValidator = (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null;
+      return String(control.value).trim().length >= 3 ? null : { whitespaceOnly: true };
+    };
+
     this.incomeForm = this.fb.group({
-      monto: [null, [Validators.required, Validators.min(0.01)]],
-      descripcion: ['', [Validators.required, Validators.minLength(2)]],
-      fecha: [today, Validators.required],
-      categoria: ['Salario', Validators.required],
-      estado: ['completado', Validators.required],
+      monto: [null, [Validators.required, Validators.min(0.01), maxTwoDecimalsValidator]],
+      descripcion: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100), noWhitespaceOnlyValidator]],
+      fecha: [today, [Validators.required, notFutureDateValidator]],
+      categoria: ['Salario', [Validators.required, Validators.pattern('^(Salario|Servicios|Freelance|Inversiones|Otros)$')]],
+      estado: ['completado', [Validators.required, Validators.pattern('^(completado|pendiente)$')]],
       tipoCuenta: ['Cuenta corriente', Validators.required],
     });
 
     this.expenseForm = this.fb.group({
-      monto: [null, [Validators.required, Validators.min(0.01)]],
-      descripcion: ['', [Validators.required, Validators.minLength(2)]],
-      fecha: [today, Validators.required],
-      categoria: ['Alimentación', Validators.required],
-      estado: ['pagado', Validators.required],
+      monto: [null, [Validators.required, Validators.min(0.01), maxTwoDecimalsValidator]],
+      descripcion: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100), noWhitespaceOnlyValidator]],
+      fecha: [today, [Validators.required, notFutureDateValidator]],
+      categoria: ['Alimentación', [Validators.required, Validators.pattern('^(Vivienda|Alimentación|Transporte|Otros)$')]],
+      estado: ['pagado', [Validators.required, Validators.pattern('^(pagado|pendiente)$')]],
     });
 
     // =========================================================================
@@ -352,12 +372,12 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Formulario de configuración de salario, información bancaria y datos tributarios
     // =========================================================================
     this.incomeConfigForm = this.fb.group({
-      montoIngreso: [null, [Validators.required, Validators.min(1)]],
+      montoIngreso: [null, [Validators.required, Validators.min(0.01), maxTwoDecimalsValidator]],
       sueldoHora: [{ value: 0, disabled: false }],
       nombreBanco: [this.defaultBankInfo.nombreBanco, Validators.required],
-      numeroCuenta: [this.defaultBankInfo.numeroCuenta, Validators.required],
+      numeroCuenta: [this.defaultBankInfo.numeroCuenta, [Validators.required, Validators.minLength(3), Validators.maxLength(50), noWhitespaceOnlyValidator]],
       tipoCuenta: [this.defaultBankInfo.tipoCuenta, Validators.required],
-      taxId: [this.defaultBankInfo.taxId, Validators.required],
+      taxId: [this.defaultBankInfo.taxId, [Validators.required, Validators.minLength(3), Validators.maxLength(30), noWhitespaceOnlyValidator]],
       frecuenciaPago: [this.defaultBankInfo.frecuenciaPago, Validators.required],
       currency: [this.defaultBankInfo.currency, Validators.required],
     });
@@ -425,6 +445,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.incomeConfigSubmitting.set(true);
     this.incomeConfigSuccess.set(null);
+    this.incomeConfigError.set(null);
 
     const values = this.incomeConfigForm.value;
     const isAhorro = values.tipoCuenta === 'Cuenta de ahorro';
@@ -466,8 +487,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         },
         error: (err) => {
           this.incomeConfigSubmitting.set(false);
-          this.incomeConfigSuccess.set(err?.error?.message || 'Error al registrar ingreso.');
-          setTimeout(() => this.incomeConfigSuccess.set(null), 4000);
+          this.incomeConfigError.set(err?.error?.message || 'Error al registrar ingreso.');
+          setTimeout(() => this.incomeConfigError.set(null), 5000);
         },
       });
   }
@@ -795,7 +816,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       // Resetear formulario al entrar a la vista de Gastos
       this.formError.set(null);
       this.formSuccess.set(null);
-      this.editingItem.set(null);
       this.expenseForm.reset({
         monto: null,
         descripcion: '',
@@ -803,6 +823,13 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         categoria: 'Alimentación',
         estado: 'pagado',
       });
+    } else if (view === 'history') {
+      this.finanzasService.loadHistorial();
+    } else if (view === 'reports') {
+      this.finanzasService.loadResumen();
+      this.finanzasService.loadCategorias();
+    } else if (view === 'config') {
+      this.finanzasService.loadConfiguracion();
     }
   }
 
@@ -882,18 +909,16 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showDeleteConfirm.set(null);
     this.editingItem.set(null);
     this.formError.set(null);
+    this.formWarning.set(null);
     this.formSuccess.set(null);
   }
 
   // --- Guardar Ingreso ---
-  saveIncome(): void {
+  saveIncome(bypassDuplicate: boolean = false): void {
     if (this.incomeForm.invalid) {
       this.incomeForm.markAllAsTouched();
       return;
     }
-
-    this.formSubmitting.set(true);
-    this.formError.set(null);
 
     const rawValues = this.incomeForm.value;
     const isAhorro = rawValues.tipoCuenta === 'Cuenta de ahorro';
@@ -908,6 +933,39 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     };
 
     const isEdit = this.editingItem();
+
+    // Validación de Saldo: si se está reduciendo el monto de un ingreso existente,
+    // validar que los gastos registrados no superen el nuevo total de ingresos disponible.
+    if (isEdit && isEdit.type === 'ingreso' && isEdit.data?.monto) {
+      const montoOriginal = Number(isEdit.data.monto);
+      const saldoTotalActual = this.finanzasService.resumen().saldoTotal;
+      const diferencia = values.monto - montoOriginal;
+      if (saldoTotalActual + diferencia < 0) {
+        this.formError.set(
+          `Operación bloqueada. Reducir este ingreso a Q${values.monto.toFixed(2)} dejaría tu saldo en negativo respecto a tus gastos registrados.`
+        );
+        return;
+      }
+    }
+
+    // Detección de duplicados (advertencia previa)
+    if (!bypassDuplicate && !isEdit) {
+      const isDuplicate = this.finanzasService.ingresos().some(
+        (i) =>
+          Number(i.monto) === values.monto &&
+          i.descripcion.trim().toLowerCase() === values.descripcion.toLowerCase() &&
+          i.categoria.toLowerCase() === values.categoria.toLowerCase() &&
+          (i.fecha ? i.fecha.split('T')[0] : '') === values.fecha
+      );
+      if (isDuplicate) {
+        this.formWarning.set('Advertencia: Ya existe un ingreso con el mismo monto, descripción, categoría y fecha. Haz clic de nuevo en "Guardar Ingreso" si deseas registrarlo de todas formas.');
+        return;
+      }
+    }
+
+    this.formSubmitting.set(true);
+    this.formError.set(null);
+    this.formWarning.set(null);
 
     if (isEdit && isEdit.type === 'ingreso') {
       this.finanzasService.updateIngreso(isEdit.data.id, values).subscribe({
@@ -935,14 +993,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // --- Guardar Gasto ---
-  saveExpense(): void {
+  saveExpense(bypassDuplicate: boolean = false): void {
     if (this.expenseForm.invalid) {
       this.expenseForm.markAllAsTouched();
       return;
     }
-
-    this.formSubmitting.set(true);
-    this.formError.set(null);
 
     const rawValues = this.expenseForm.value;
     const values = {
@@ -954,6 +1009,37 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     };
     const isEdit = this.editingItem();
     const isInlineView = this.activeView() === 'gastos';
+
+    // Validación de Saldo Disponible
+    const saldoTotal = this.finanzasService.resumen().saldoTotal;
+    const montoAnterior = (isEdit && isEdit.type === 'gasto' && isEdit.data?.monto) ? Number(isEdit.data.monto) : 0;
+    const saldoDisponible = isEdit ? (saldoTotal + montoAnterior) : saldoTotal;
+
+    if (values.monto > saldoDisponible) {
+      this.formError.set(
+        `Fondos insuficientes. Tu saldo disponible es Q${saldoDisponible.toFixed(2)} y estás intentando registrar un gasto de Q${values.monto.toFixed(2)}.`
+      );
+      return;
+    }
+
+    // Detección de duplicados (advertencia previa)
+    if (!bypassDuplicate && !isEdit) {
+      const isDuplicate = this.finanzasService.gastos().some(
+        (g) =>
+          Number(g.monto) === values.monto &&
+          g.descripcion.trim().toLowerCase() === values.descripcion.toLowerCase() &&
+          g.categoria.toLowerCase() === values.categoria.toLowerCase() &&
+          (g.fecha ? g.fecha.split('T')[0] : '') === values.fecha
+      );
+      if (isDuplicate) {
+        this.formWarning.set('Advertencia: Ya existe un gasto con el mismo monto, descripción, categoría y fecha. Haz clic de nuevo en "Guardar Gasto" si deseas registrarlo de todas formas.');
+        return;
+      }
+    }
+
+    this.formSubmitting.set(true);
+    this.formError.set(null);
+    this.formWarning.set(null);
 
     const resetExpenseForm = () => {
       this.expenseForm.reset({

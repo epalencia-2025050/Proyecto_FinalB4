@@ -120,13 +120,29 @@
         <!-- Botón de Iniciar Sesión -->
         <button 
           type="submit" 
-          [disabled]="loading()"
+          [disabled]="loading() || googleLoading()"
           class="w-full h-12 mt-1 rounded-xl bg-gradient-to-r from-[#1E8A5D] via-[#17A398] to-[#1E8A5D] text-white font-semibold text-sm hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-[#17A398]/30 flex items-center justify-center gap-2 disabled:opacity-50"
         >
           <span *ngIf="loading()" class="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
           <span>{{ loading() ? 'Iniciando...' : 'Iniciar Sesión' }}</span>
           <svg *ngIf="!loading()" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
         </button>
+
+        <!-- Separador O -->
+        <div class="relative flex py-2 items-center">
+          <div class="flex-grow border-t border-white/15"></div>
+          <span class="flex-shrink mx-3 text-[11px] uppercase tracking-wider text-[#EEF1F4]/60 font-semibold">o continuar con</span>
+          <div class="flex-grow border-t border-white/15"></div>
+        </div>
+
+        <!-- Botón Oficial de Google Identity Services -->
+        <div class="w-full flex flex-col items-center justify-center min-h-[44px]">
+          <div #googleBtnContainer class="w-full flex justify-center"></div>
+          <div *ngIf="googleLoading()" class="flex items-center gap-2 text-xs text-[#17A398] mt-2">
+            <span class="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-[#17A398] border-t-transparent"></span>
+            <span>Verificando cuenta de Google...</span>
+          </div>
+        </div>
 
       </form>
 
