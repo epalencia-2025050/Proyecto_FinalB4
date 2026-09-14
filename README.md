@@ -1,4 +1,4 @@
-﻿# Proyecto de Gestion de ingresos
+# Proyecto de Gestion de ingresos
 Este proyecto esta realizado para la gestion de los ingresos o gastos que puede tener 
 una persona o familia, organizando en diferentes secciones, como que tipo de banco almacena los ingresos, registro de gastos mensuales.
 
@@ -103,9 +103,9 @@ Las validaciones controlan que los datos ingresados sean correctos antes de alma
 
 - Ve a visual estudio code y abre la carpeta del proyecto, se abriran dos carpetas "fornted y backend".
 
-- En el codigo del backend hay una carpeta que dice "database" abre el archivo de schemas.sql y seed.sql ve a potgres y pega el codigo de los dos archivos y ejecutalos precionando "F5" se crearia la base de datos local.
+- La base de datos se crea e inicializa **automáticamente**: Al arrancar el backend por primera vez, el sistema verifica si la base de datos `gestion_ingresos` existe en PostgreSQL; si no existe, la crea, ejecuta todas las tablas, esquemas, migraciones y carga los datos de prueba automáticamente sin necesidad de ejecutar scripts manuales en pgAdmin.
 
-- Abre en visual la primera terminal y en la terminal, Escribe "cd backend" despues "pnpm install" esperas a que termine y escribes "pnpm run dev" y dejas que termine.
+- Abre en visual la primera terminal y en la terminal, Escribe "cd backend" despues "pnpm install" esperas a que termine y escribes "pnpm run dev" y dejas que termine. Al iniciar verás los mensajes confirmando la creación y conexión de la base de datos.
 
 - Abre en visual la segunda termina y en la terminal, Escirbe "cd fornted" despues "pnpm install" esperas a que se instale y escribes "pnpm start"
 

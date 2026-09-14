@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { env } from './env';
+import { initializeDatabase } from './initDatabase';
 
 export const pool = new Pool({
   host: env.db.host,
@@ -15,12 +16,8 @@ pool.on('error', (err: Error) => {
   console.error('Error inesperado en el pool de PostgreSQL', err);
 });
 
+export { initializeDatabase };
+
 export async function checkDatabaseConnection(): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query('SELECT 1');
-    console.log('✅ Conexion a la base de datos establecida correctamente');
-  } finally {
-    client.release();
-  }
+  await initializeDatabase();
 }
